@@ -69,4 +69,64 @@ test_suite SuiteName of TestSuite:
     einheit.run_tests()
 ```
 
-You can also find examples in the [test.nim](test.nim) file, including inheritance . 
+You can also find examples in the [test.nim](test.nim) file, including inheritance.
+
+
+Output of running
+
+```bash
+nim c -r test.nim
+```
+
+is this:
+
+```
+[Running] UnitTests
+
+[OK]     test_for_b
+[Failed] test_for_c
+  Condition: assert_true(c, 1)
+  Reason: c == 0; 0 != 1
+  Location: test.nim; line 24
+
+[1/2] tests passed.
+
+
+[Running] UnitTestsNew
+
+[OK]     test_test_obj
+[OK]     test_stuff
+[OK]     test_more
+[OK]     test_more_more
+
+[4/4] tests passed.
+
+
+[Running] TestInherit
+
+[OK]     test_test_obj
+[OK]     test_stuff
+[OK]     test_more
+[OK]     test_more_more
+[OK]     test_raises
+
+[5/5] tests passed.
+
+
+[Running] MoreInheritance
+
+[Failed] test_test_obj
+  Condition: assert_true(self.test_obj == 90)
+  Reason: (self.test_obj == 90) == false
+  Location: test.nim; line 36
+[OK]     test_stuff
+[OK]     test_more
+[OK]     test_more_more
+[OK]     test_raises
+[OK]     test_test_obj
+[OK]     test_new_obj
+
+[6/7] tests passed.
+```
+
+Notice that on failure, the test runner gives some useful information about the test in question. This is useful for determining why the test failed.
