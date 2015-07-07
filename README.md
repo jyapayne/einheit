@@ -83,9 +83,9 @@ is this:
 ```
 [Running] UnitTests
 
-[OK]     test_for_b
-[Failed] test_for_c
-  Condition: assert_true(c, 1)
+[OK]     testForB
+[Failed] testForC
+  Condition: assertTrue(c, 1)
   Reason: c == 0; 0 != 1
   Location: test.nim; line 24
 
@@ -94,37 +94,37 @@ is this:
 
 [Running] UnitTestsNew
 
-[OK]     test_test_obj
-[OK]     test_stuff
-[OK]     test_more
-[OK]     test_more_more
+[OK]     testTestObj
+[OK]     testStuff
+[OK]     testMore
+[OK]     testMoreMore
 
 [4/4] tests passed.
 
 
 [Running] TestInherit
 
-[OK]     test_test_obj
-[OK]     test_stuff
-[OK]     test_more
-[OK]     test_more_more
-[OK]     test_raises
+[OK]     testTestObj
+[OK]     testStuff
+[OK]     testMore
+[OK]     testMoreMore
+[OK]     testRaises
 
 [5/5] tests passed.
 
 
 [Running] MoreInheritance
 
-[Failed] test_test_obj
-  Condition: assert_true(self.test_obj == 90)
-  Reason: (self.test_obj == 90) == false
+[Failed] testTestObj
+  Condition: assertTrue(self.testObj == 90)
+  Reason: (self.testObj == 90) == false
   Location: test.nim; line 36
-[OK]     test_stuff
-[OK]     test_more
-[OK]     test_more_more
-[OK]     test_raises
-[OK]     test_test_obj
-[OK]     test_new_obj
+[OK]     testStuff
+[OK]     testMore
+[OK]     testMoreMore
+[OK]     testRaises
+[OK]     testTestObj
+[OK]     testNewObj
 
 [6/7] tests passed.
 ```
