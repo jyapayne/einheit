@@ -8,4 +8,4 @@ license       = "MIT"
 bin = "einheit"
 
 [Deps]
-Requires: "nim >= 0.11.2, compiler >= 0.11.3"
+Requires: "nim >= 0.11.3"
