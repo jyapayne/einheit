@@ -1,0 +1,11 @@
+[Package]
+name          = "einheit"
+version       = "0.1.0"
+author        = "Joey Payne"
+description   = "Tool for providing unit tests. Einheit is German for Unit."
+license       = "MIT"
+
+bin = "einheit"
+
+[Deps]
+Requires: "nim >= 0.11.2, compiler >= 0.11.3"
