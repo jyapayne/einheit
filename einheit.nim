@@ -14,35 +14,43 @@
 ##      self.assert_false(3 == 4)
 ##      self.assert_raises(OSError, newException(OSError, "OS is exploding!"))
 ##
-
-
 import macros
 import strutils
 when not defined(ECMAScript):
   import terminal
 
+
 type
   TestSuite = ref object of RootObj
+    ## The base TestSuite
     name: string
     current_test_name: string
     tests_passed: int
     num_tests: int
 
   TestAssertError = object of Exception
+    ## assert_true and other assert_* statements will raise
+    ## this exception when the condition fails
     line_number: int
     file_name: string
     code_snip: string
     test_name: string
 
-# Methods for the TestSuite base
+# -- Methods for the TestSuite base --
 
 method setup*(suite: TestSuite)=
+  ## Base method for setup code
   discard
 
 method run_tests*(suite: TestSuite)=
+  ## Base method for running tests
   discard
 
+# ------------------------------------
+
+
 template return_exception(name, test_name, snip, vals)=
+    ## private template for raising an exception
     let pos = instantiationInfo(fullpaths=true)
     let pos_rel = instantiationInfo()
     var
@@ -60,7 +68,10 @@ template return_exception(name, test_name, snip, vals)=
     exc.test_name = test_name
     raise exc
 
+# --------------------------- Templates for assertion --------------------------------------
+
 template assert_equal*(self: TestSuite, lhs: untyped, rhs: untyped): untyped {.immediate.}=
+  ## Raises a TestAssertError when the lhs and the rhs are not equal.
   if (lhs) != (rhs):
     var snip = astToStr(lhs) & ", " & astToStr(rhs)
 
@@ -71,6 +82,7 @@ template assert_equal*(self: TestSuite, lhs: untyped, rhs: untyped): untyped {.i
     return_exception("assert_true", test_name, snip, vals)
 
 template assert_true*(self: TestSuite, code: untyped): untyped {.immediate.}=
+  ## Raises a TestAssertError when the code is false.
   if not code:
     var snip = astToStr(code)
 
@@ -81,6 +93,7 @@ template assert_true*(self: TestSuite, code: untyped): untyped {.immediate.}=
     return_exception("assert_true", test_name, snip, vals)
 
 template assert_false*(self: TestSuite, code: untyped): untyped {.immediate.}=
+  ## Raises a TestAssertError when the code is true.
   if code:
     var snip = astToStr(code)
 
@@ -92,6 +105,8 @@ template assert_false*(self: TestSuite, code: untyped): untyped {.immediate.}=
 
 
 template assert_raises*(self: TestSuite, error: untyped, code: untyped): untyped {.immediate.}=
+  ## Raises a TestAssertError when the exception "error" is
+  ## not thrown in the code
   try:
     code
     var
@@ -115,10 +130,53 @@ template assert_raises*(self: TestSuite, error: untyped, code: untyped): untyped
 
     discard
 
-# A list to hold all test suites
+# --------------------------------------------------------------------------------------------------
+
+
+# A list to hold all test suites that are created
 var test_suites: seq[TestSuite] = @[]
 
 macro test_suite*(head: untyped, body: untyped): untyped =
+  ## Compile-time macro that allows a user to define tests and run them
+  ##
+  ## Methods are used for inheritance, so if you want to derive a test
+  ## suite, then you have to make sure the base suite uses methods
+  ## for the tests that you want to derive.
+  ##
+  ## If you don't want inheritance, you can just use procs.
+  ##
+  ## A special proc/method is called setup(). The macro will inject
+  ## this if it doesn't exist and it will be called before running
+  ## the test suite.
+  ##
+  ## Test methods/procs to be run are prefixed with "test" in the
+  ## method/proc name. This is so that you can write tests that call
+  ## procs that do other things and won't be run as a test.
+  ##
+  ## For each suite method/proc, an implicit variable called "self"
+  ## is added. This lets you access the test_suite in an OO kind
+  ## of way.
+  ##
+  ## Usage:
+  ##
+  ## .. code:: nim
+  ##
+  ##  test_suite SuiteName of TestSuite:
+  ##
+  ##    var
+  ##      suite_var: string
+  ##
+  ##    method setup()=
+  ##      ## do setup code here
+  ##      self.suite_var = "Testing"
+  ##
+  ##    method test_adding_string()=
+  ##      ## adds a string to the suite_var
+  ##      self.suite_var &= " 123"
+  ##      self.assert_equal(self.suite_var, "Testing 123")
+  ##
+  ##  when isMainModule:
+  ##    einheit.run_tests()
   
   # object reference name inside methods.
   # ie: self, self
@@ -314,7 +372,7 @@ macro test_suite*(head: untyped, body: untyped): untyped =
           let dot_name = newDotExpr(ident(obj_reference), ident("name"))
           let set_name = newAssignment(dot_name, newLit(typeName))
           n2.body.add(set_name)
-        else:
+        elif proc_name.startswith("test"):
           let proc_call = newDotExpr(ident(obj_reference),
                                      ident(proc_name & type_name))
 
@@ -428,7 +486,11 @@ macro test_suite*(head: untyped, body: untyped): untyped =
 
   result.add(getAst(add_test_suite(typeName)))
 
+
 proc run_tests*()=
+  ## The method that runs the tests. Invoke
+  ## after setting up all of the tests and 
+  ## usually inside a "when isMainModule" block
   for suite in test_suites:
     suite.setup()
 
