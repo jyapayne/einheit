@@ -7,7 +7,7 @@ Einheit is a Nim unit testing library inspired by Python's unit tests. Nim's uni
 The benefit of the macro style I chose means that you can document your tests nicely as well :)
 
 ### Description
-test_suite is a compile-time macro that allows a user to easily define tests and run them.
+testSuite is a compile-time macro that allows a user to easily define tests and run them.
 
 Methods are used for inheritance, so if you want to derive a test suite, then you have to make sure the base suite uses methods for the tests that you want to derive.
 
@@ -17,7 +17,7 @@ A special proc/method is called setup(). The macro will inject this method/proc 
 
 Test methods/procs to be run are prefixed with "test" in the method/proc name. This is so that you can write tests that call procs that do other things and won't be run as a test.
 
-For each suite method/proc, an implicit variable called "self" is added. This lets you access the test_suite in an OO kind of way.
+For each suite method/proc, an implicit variable called "self" is added. This lets you access the testSuite in an OO kind of way.
 
 ### Installation
 
@@ -32,41 +32,41 @@ nimble install einheit
 ```nim
 import einheit
 
-test_suite SuiteName of TestSuite:
+testSuite SuiteName of TestSuite:
 
   var
-    suite_var: string
-    test_obj: int
+    suiteVar: string
+    testObj: int
 
   method setup()=
     ## do setup code here
-    self.suite_var = "Testing"
-    self.test_obj = 90
+    self.suiteVar = "Testing"
+    self.testObj = 90
 
-  method test_adding_string()=
-    ## adds a string to the suite_var
-    self.suite_var &= " 123"
-    self.assert_equal(self.suite_var, "Testing 123")
+  method testAddingString()=
+    ## adds a string to the suiteVar
+    self.suiteVar &= " 123"
+    self.assertEqual(self.suiteVar, "Testing 123")
 
-  proc raises_os()=
+  proc raisesOs()=
     # This proc won't be invoked as a test, it must begin with "test" in lowercase
     raise newException(OSError, "Oh no! OS malfunction!")
   
-  method test_raises()=
+  method testRaises()=
     # Two ways of asserting
-    self.assert_raises OSError:
-      self.raises_os()
+    self.assertRaises OSError:
+      self.raisesOs()
 
-    self.assert_raises(OSError, self.raises_os())
+    self.assertRaises(OSError, self.raisesOs())
 
-  method test_test_obj()=
-    self.assert_true(self.test_obj == 90)
+  method testTestObj()=
+    self.assertTrue(self.testObj == 90)
 
-  method test_more_more()=
-    self.assert_false("String" != "String")
+  method testMoreMore()=
+    self.assertFalse("String" != "String")
 
   when isMainModule:
-    einheit.run_tests()
+    einheit.runTests()
 ```
 
 You can also find examples in the [test.nim](test.nim) file, including inheritance.

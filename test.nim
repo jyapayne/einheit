@@ -1,69 +1,69 @@
 import einheit
 
-test_suite UnitTests:
+testSuite UnitTests:
   var
-    test_obj: int
+    testObj: int
 
-  proc do_things()=
+  proc doThings()=
     # This proc won't be invoked as a test
-    self.test_obj = 400
-    self.assert_true(self.test_obj == 400)
+    self.testObj = 400
+    self.assertTrue(self.testObj == 400)
 
   method setup()=
-    self.test_obj = 5
-    self.test_obj = 90
+    self.testObj = 5
+    self.testObj = 90
 
-  method test_for_b()=
+  method testForB()=
     var b = 0
-    self.do_things()
-    self.assert_true(4 == 4)
+    self.doThings()
+    self.assertTrue(4 == 4)
 
-  method test_for_c()=
+  method testForC()=
     var c = 0
     # supposed to fail
-    self.assert_equal(c, 1)
+    self.assertEqual(c, 1)
 
 
-test_suite UnitTestsNew:
+testSuite UnitTestsNew:
   var
-    test_obj: int
+    testObj: int
 
   method setup()=
-    self.test_obj = 5
-    self.test_obj = 90
+    self.testObj = 5
+    self.testObj = 90
 
-  method test_test_obj()=
-    self.assert_true(self.test_obj == 90)
+  method testTestObj()=
+    self.assertTrue(self.testObj == 90)
 
-  method test_stuff()=
-    self.assert_equal("Stuff", "Stuff")
+  method testStuff()=
+    self.assertEqual("Stuff", "Stuff")
 
-  method test_more()=
-    self.assert_equal("String", "String")
+  method testMore()=
+    self.assertEqual("String", "String")
 
-  method test_more_more()=
-    self.assert_false("String" != "String")
+  method testMoreMore()=
+    self.assertFalse("String" != "String")
 
 
 
 # Inheritance!
-test_suite TestInherit of UnitTestsNew:
+testSuite TestInherit of UnitTestsNew:
   ## This will call every test defined in UnitTestsNew
 
-  proc raises_os()=
+  proc raisesOs()=
     # This proc won't be invoked as a test
     raise newException(OSError, "Oh no! OS malfunction!")
 
-  method test_raises()=
+  method testRaises()=
 
     # Two ways of asserting
-    self.assert_raises OSError:
-      self.raises_os()
+    self.assertRaises OSError:
+      self.raisesOs()
 
-    self.assert_raises(OSError, self.raises_os())
+    self.assertRaises(OSError, self.raisesOs())
 
 
-test_suite MoreInheritance of TestInherit:
+testSuite MoreInheritance of TestInherit:
 
   method setup()=
     # This must be called if overriding setup if you want
@@ -74,20 +74,20 @@ test_suite MoreInheritance of TestInherit:
 
     # This will make one of the tests inherited from UnitTestsNew
     # fail. This is expected.
-    self.test_obj = 12345
+    self.testObj = 12345
 
-  method test_test_obj()=
+  method testTestObj()=
     # This method is overwritten. To call the base method,
     # simply use
-    #   self.test_test_obj_UnitTestsNew()
+    #   self.testTestObj_UnitTestsNew()
     # However, currently this method will be run
     # IN ADDITION to the base class's method.
     # This one will pass, the other will fail
-    self.assert_true(self.test_obj == 12345)
+    self.assertTrue(self.testObj == 12345)
 
-  method test_new_obj()=
-    self.assert_equal(self.test_obj, 12345)
+  method testNewObj()=
+    self.assertEqual(self.testObj, 12345)
 
 
 when isMainModule:
-  run_tests()
+  runTests()

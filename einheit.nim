@@ -7,12 +7,12 @@
 ##
 ## .. code:: nim
 ##
-##  test_suite UnitTests:
-##    proc this_is_a_test()=
-##      self.assert_equals(1, 1)
-##      self.assert_true(2 != 3)
-##      self.assert_false(3 == 4)
-##      self.assert_raises(OSError, newException(OSError, "OS is exploding!"))
+##  testSuite UnitTests:
+##    proc thisIsATest()=
+##      self.assertEquals(1, 1)
+##      self.assertTrue(2 != 3)
+##      self.assertFalse(3 == 4)
+##      self.assertRaises(OSError, newException(OSError, "OS is exploding!"))
 ##
 import macros
 import strutils
@@ -24,17 +24,17 @@ type
   TestSuite = ref object of RootObj
     ## The base TestSuite
     name: string
-    current_test_name: string
-    tests_passed: int
-    num_tests: int
+    currentTestName: string
+    testsPassed: int
+    numTests: int
 
   TestAssertError = object of Exception
-    ## assert_true and other assert_* statements will raise
+    ## assertTrue and other assert_* statements will raise
     ## this exception when the condition fails
-    line_number: int
-    file_name: string
-    code_snip: string
-    test_name: string
+    lineNumber: int
+    fileName: string
+    codeSnip: string
+    testName: string
 
 # -- Methods for the TestSuite base --
 
@@ -42,19 +42,19 @@ method setup*(suite: TestSuite)=
   ## Base method for setup code
   discard
 
-method run_tests*(suite: TestSuite)=
+method runTests*(suite: TestSuite)=
   ## Base method for running tests
   discard
 
 # ------------------------------------
 
 
-template return_exception(name, test_name, snip, vals)=
+template returnException(name, testName, snip, vals)=
     ## private template for raising an exception
     let pos = instantiationInfo(fullpaths=true)
-    let pos_rel = instantiationInfo()
+    let posRel = instantiationInfo()
     var
-      filename = pos_rel.filename
+      filename = posRel.filename
       line = pos.line
     var message = "\n"
     message &= "  Condition: $2($1)\n".format(snip.replace("\n","").strip(), name)
@@ -62,49 +62,49 @@ template return_exception(name, test_name, snip, vals)=
     message &= "  Location: $1; line $2".format(filename, line)
 
     var exc = newException(TestAssertError, message)
-    exc.file_name = filename
-    exc.line_number = line
-    exc.code_snip = snip
-    exc.test_name = test_name
+    exc.fileName = filename
+    exc.lineNumber = line
+    exc.codeSnip = snip
+    exc.testName = testName
     raise exc
 
 # --------------------------- Templates for assertion --------------------------------------
 
-template assert_equal*(self: TestSuite, lhs: untyped, rhs: untyped): untyped {.immediate.}=
+template assertEqual*(self: TestSuite, lhs: untyped, rhs: untyped): untyped {.immediate.}=
   ## Raises a TestAssertError when the lhs and the rhs are not equal.
   if (lhs) != (rhs):
     var snip = astToStr(lhs) & ", " & astToStr(rhs)
 
     var
       vals = "$3 == $1; $1 != $2".format(lhs, rhs, astToStr(lhs))
-      test_name = self.current_test_name
+      testName = self.currentTestName
 
-    return_exception("assert_true", test_name, snip, vals)
+    returnException("assertTrue", testName, snip, vals)
 
-template assert_true*(self: TestSuite, code: untyped): untyped {.immediate.}=
+template assertTrue*(self: TestSuite, code: untyped): untyped {.immediate.}=
   ## Raises a TestAssertError when the code is false.
   if not code:
     var snip = astToStr(code)
 
     var
       vals = "($1) == $2".format(snip, code)
-      test_name = self.current_test_name
+      testName = self.currentTestName
 
-    return_exception("assert_true", test_name, snip, vals)
+    returnException("assertTrue", testName, snip, vals)
 
-template assert_false*(self: TestSuite, code: untyped): untyped {.immediate.}=
+template assertFalse*(self: TestSuite, code: untyped): untyped {.immediate.}=
   ## Raises a TestAssertError when the code is true.
   if code:
     var snip = astToStr(code)
 
     var
       vals = "($1) == $2".format(snip, code)
-      test_name = self.current_test_name
+      testName = self.currentTestName
 
-    return_exception("assert_false", test_name, snip, vals)
+    returnException("assertFalse", testName, snip, vals)
 
 
-template assert_raises*(self: TestSuite, error: untyped, code: untyped): untyped {.immediate.}=
+template assertRaises*(self: TestSuite, error: Exception, code: untyped): untyped {.immediate.}=
   ## Raises a TestAssertError when the exception "error" is
   ## not thrown in the code
   try:
@@ -112,9 +112,9 @@ template assert_raises*(self: TestSuite, error: untyped, code: untyped): untyped
     var
       snip = astToStr(code)
       vals = "No Exception Raised"
-      test_name = self.current_test_name
+      testName = self.currentTestName
 
-    return_exception("assert_raises", test_name, snip, vals)
+    returnException("assertRaises", testName, snip, vals)
 
   except error:
     discard
@@ -124,9 +124,9 @@ template assert_raises*(self: TestSuite, error: untyped, code: untyped): untyped
     var
       snip = astToStr(code)
       vals = "Exception != $1".format(astToStr(error))
-      test_name = self.current_test_name
+      testName = self.currentTestName
 
-    return_exception("assert_raises", test_name, snip, vals)
+    returnException("assertRaises", testName, snip, vals)
 
     discard
 
@@ -134,9 +134,9 @@ template assert_raises*(self: TestSuite, error: untyped, code: untyped): untyped
 
 
 # A list to hold all test suites that are created
-var test_suites: seq[TestSuite] = @[]
+var testSuites: seq[TestSuite] = @[]
 
-macro test_suite*(head: untyped, body: untyped): untyped =
+macro testSuite*(head: untyped, body: untyped): untyped =
   ## Compile-time macro that allows a user to define tests and run them
   ##
   ## Methods are used for inheritance, so if you want to derive a test
@@ -154,36 +154,36 @@ macro test_suite*(head: untyped, body: untyped): untyped =
   ## procs that do other things and won't be run as a test.
   ##
   ## For each suite method/proc, an implicit variable called "self"
-  ## is added. This lets you access the test_suite in an OO kind
+  ## is added. This lets you access the testSuite in an OO kind
   ## of way.
   ##
   ## Usage:
   ##
   ## .. code:: nim
   ##
-  ##  test_suite SuiteName of TestSuite:
+  ##  testSuite SuiteName of TestSuite:
   ##
   ##    var
-  ##      suite_var: string
+  ##      suiteVar: string
   ##
   ##    method setup()=
   ##      ## do setup code here
-  ##      self.suite_var = "Testing"
+  ##      self.suiteVar = "Testing"
   ##
-  ##    method test_adding_string()=
-  ##      ## adds a string to the suite_var
-  ##      self.suite_var &= " 123"
-  ##      self.assert_equal(self.suite_var, "Testing 123")
+  ##    method testAddingString()=
+  ##      ## adds a string to the suiteVar
+  ##      self.suiteVar &= " 123"
+  ##      self.assertEqual(self.suiteVar, "Testing 123")
   ##
   ##  when isMainModule:
-  ##    einheit.run_tests()
+  ##    einheit.runTests()
   
   # object reference name inside methods.
   # ie: self, self
-  let obj_reference = "self"
-  var export_class: bool = false
+  let objReference = "self"
+  var exportClass: bool = false
 
-  template import_required_libs()=
+  template importRequiredLibs()=
     import strutils
     when not defined(ECMAScript):
       import terminal
@@ -217,11 +217,11 @@ macro test_suite*(head: untyped, body: untyped): untyped =
     #  Prefix
     #  Ident !"of"
     #  Ident !"RootObj"
-    export_class = true
+    exportClass = true
     typeName = head[1]
     baseName = head[2][1]
   elif head.kind == nnkInfix and $head[0] == "*":
-    export_class = true
+    exportClass = true
     typeName = head[1]
   else:
     quit "Invalid node: " & head.lispRepr
@@ -250,7 +250,7 @@ macro test_suite*(head: untyped, body: untyped): untyped =
   #   StmtList
   #     StrLit ...
   # MethodDef
-  #   Ident !"age_human_yrs"
+  #   Ident !"ageHumanYrs"
   #   Empty
   #   Empty
   #   FormalParams
@@ -276,37 +276,37 @@ macro test_suite*(head: untyped, body: untyped): untyped =
   #          return `baseName`(self)
   #   result.add(super)
 
-  template set_node_name(n2, proc_name, type_name)=
+  template setNodeName(n2, procName, typeName)=
     if n2.name.kind == nnkIdent:
-      proc_name = $(n2.name.toStrLit())
-      n2.name = ident(proc_name & type_name)
+      procName = $(n2.name.toStrLit())
+      n2.name = ident(procName & typeName)
     elif n2.name.kind == nnkPostFix:
       if n2.name[1].kind == nnkIdent:
-        proc_name = $(n2.name[1].toStrLit())
-        n2.name[1] = ident(proc_name & type_name)
+        procName = $(n2.name[1].toStrLit())
+        n2.name[1] = ident(procName & typeName)
       elif n2.name[1].kind == nnkAccQuoted:
-        proc_name = $(n2.name[1][0].toStrLit())
-        n2.name[1][0] = ident(proc_name & type_name)
+        procName = $(n2.name[1][0].toStrLit())
+        n2.name[1][0] = ident(procName & typeName)
     elif n2.name.kind == nnkAccQuoted:
-      proc_name = $(n2.name[0].toStrLit())
-      n2.name[0] = ident(proc_name & type_name)
+      procName = $(n2.name[0].toStrLit())
+      n2.name[0] = ident(procName & typeName)
     result.add(n2)
 
 
-  template run_tests_proc(self, typeName, base_method, type_method)=
-    method type_method(self: typeName)=
-      when compiles(self.base_method()):
-        self.base_method()
+  template runTestsProc(self, typeName, baseMethod, typeMethod)=
+    method typeMethod(self: typeName)=
+      when compiles(self.baseMethod()):
+        self.baseMethod()
     
-    method run_tests(self: typeName)=
-      self.type_method()
+    method runTests(self: typeName)=
+      self.typeMethod()
 
-  var base_method_name = ident("run_tests" & $baseName.toStrLit())
-  var type_method_name = ident("run_tests" & $typeName.toStrLit())
+  var baseMethodName = ident("runTests" & $baseName.toStrLit())
+  var typeMethodName = ident("runTests" & $typeName.toStrLit())
 
-  var run_tests = getAst(run_tests_proc(ident(obj_reference), typeName, base_method_name, type_method_name))
+  var runTests = getAst(runTestsProc(ident(objReference), typeName, baseMethodName, typeMethodName))
 
-  var found_setup = false
+  var foundSetup = false
 
   # Make forward declarations so that function order
   # does not matter, just like in real OOP!
@@ -315,7 +315,7 @@ macro test_suite*(head: untyped, body: untyped): untyped =
       of nnkMethodDef, nnkProcDef:
         # inject `self: T` into the arguments
         let n = copyNimTree(node)
-        n.params.insert(1, newIdentDefs(ident(obj_reference), typeName))
+        n.params.insert(1, newIdentDefs(ident(objReference), typeName))
         # clear the body so we only get a
         # declaration
         n.body = newEmptyNode()
@@ -323,30 +323,30 @@ macro test_suite*(head: untyped, body: untyped): untyped =
 
         # forward declare the inheritable method
         let n2 = copyNimTree(n)
-        let type_name = $(typeName.toStrLit())
-        var proc_name = ""
+        let typeName = $(typeName.toStrLit())
+        var procName = ""
 
-        set_node_name(n2, proc_name, type_name)
+        setNodeName(n2, procName, typeName)
 
-        if proc_name == "setup":
-          found_setup = true
+        if procName == "setup":
+          foundSetup = true
       else:
         discard
 
-  if not found_setup:
-    template setup_proc(self, typeName, setup_proc)=
+  if not foundSetup:
+    template setupProc(self, typeName, setupProc)=
       method setup(self: typeName)
-      method setup_proc(self: typeName)
+      method setupProc(self: typeName)
 
-    template setup_decl(self, base_method)=
+    template setupDecl(self, baseMethod)=
       method setup()=
-        self.base_method()
+        self.baseMethod()
         discard
 
-    var setup_proc_typename = ident("setup" & $typeName.toStrLit())
-    var base_method_name = ident("setup" & $baseName.toStrLit())
-    result.add(getAst(setup_proc(ident(obj_reference), typeName, setup_proc_typename)))
-    body.add(getAst(setup_decl(ident(obj_reference), base_method_name))[0])
+    var setupProcTypename = ident("setup" & $typeName.toStrLit())
+    var baseMethodName = ident("setup" & $baseName.toStrLit())
+    result.add(getAst(setupProc(ident(objReference), typeName, setupProcTypename)))
+    body.add(getAst(setupDecl(ident(objReference), baseMethodName))[0])
 
   # Iterate over the statements, adding `self: T`
   # to the parameters of functions
@@ -355,45 +355,45 @@ macro test_suite*(head: untyped, body: untyped): untyped =
       of nnkMethodDef, nnkProcDef:
         # inject `self: T` into the arguments
         let n = copyNimTree(node)
-        n.params.insert(1, newIdentDefs(ident(obj_reference), typeName))
+        n.params.insert(1, newIdentDefs(ident(objReference), typeName))
 
         # Copy the proc or method for inheritance
         # ie: procName_ClassName()
         let n2 = copyNimTree(node)
-        n2.params.insert(1, newIdentDefs(ident(obj_reference), typeName))
+        n2.params.insert(1, newIdentDefs(ident(objReference), typeName))
 
-        let type_name = $(typeName.toStrLit())
-        var proc_name = $(n2.name.toStrLit())
-        var is_assignment = proc_name.contains("=")
+        let typeName = $(typeName.toStrLit())
+        var procName = $(n2.name.toStrLit())
+        var isAssignment = procName.contains("=")
 
-        set_node_name(n2, proc_name, type_name)
+        setNodeName(n2, procName, typeName)
 
-        if proc_name == "setup":
-          let dot_name = newDotExpr(ident(obj_reference), ident("name"))
-          let set_name = newAssignment(dot_name, newLit(typeName))
-          n2.body.add(set_name)
-        elif proc_name.startswith("test"):
-          let proc_call = newDotExpr(ident(obj_reference),
-                                     ident(proc_name & type_name))
+        if procName == "setup":
+          let dotName = newDotExpr(ident(objReference), ident("name"))
+          let setName = newAssignment(dotName, newLit(typeName))
+          n2.body.add(setName)
+        elif procName.startswith("test"):
+          let procCall = newDotExpr(ident(objReference),
+                                     ident(procName & typeName))
 
-          template set_test_name(self, proc_name)=
-            self.current_test_name = proc_name
+          template setTestName(self, procName)=
+            self.currentTestName = procName
 
-          template try_block(self, test_call)=
-            self.num_tests += 1
+          template tryBlock(self, testCall)=
+            self.numTests += 1
             try:
-              test_call
-              styled_echo(styleBright, fgGreen, "[OK]",
-                          fgWhite, "     ", self.current_test_name)
-              self.tests_passed += 1
+              testCall
+              styledEcho(styleBright, fgGreen, "[OK]",
+                          fgWhite, "     ", self.currentTestName)
+              self.testsPassed += 1
             except TestAssertError:
               let e = (ref TestAssertError)(getCurrentException())
-              styled_echo(styleBright,
+              styledEcho(styleBright,
                           fgRed, "[Failed]",
-                          fgWhite, " ", self.current_test_name, e.msg)
+                          fgWhite, " ", self.currentTestName, e.msg)
 
-          run_tests[0][6].add(getAst(set_test_name(ident(obj_reference), proc_name)))
-          run_tests[0][6].add(getAst(try_block(ident(obj_reference), proc_call)))
+          runTests[0][6].add(getAst(setTestName(ident(objReference), procName)))
+          runTests[0][6].add(getAst(tryBlock(ident(objReference), procCall)))
 
         # simply call the class method from here
         # proc procName=
@@ -401,11 +401,11 @@ macro test_suite*(head: untyped, body: untyped): untyped =
         var p: seq[NimNode] = @[]
         for i in 1..n.params.len-1:
           p.add(n.params[i][0])
-        if is_assignment:
-          let dot = newDotExpr(ident(obj_reference), ident(proc_name & type_name))
+        if isAssignment:
+          let dot = newDotExpr(ident(objReference), ident(procName & typeName))
           n.body = newStmtList(newAssignment(dot, p[1]))
         else:
-          n.body = newStmtList(newCall(proc_name & type_name, p))
+          n.body = newStmtList(newCall(procName & typeName, p))
 
         result.add(n)
 
@@ -438,27 +438,27 @@ macro test_suite*(head: untyped, body: untyped): untyped =
   #           Ident !"int"
   #           Empty
 
-  var type_decl: NimNode
+  var typeDecl: NimNode
 
-  template declare_type_export(tname, bname)=
+  template declareTypeExport(tname, bname)=
     type tname* = ref object of bname
-  template declare_type(tname, bname)=
+  template declareType(tname, bname)=
     type tname = ref object of bname
 
   if baseName == nil:
-    if export_class:
-      type_decl = getAst(declare_type_export(typeName, TestSuite))
+    if exportClass:
+      typeDecl = getAst(declareTypeExport(typeName, TestSuite))
     else:
-      type_decl = getAst(declare_type(typeName, TestSuite))
+      typeDecl = getAst(declareType(typeName, TestSuite))
   else:
-    if export_class:
-      type_decl = getAst(declare_type_export(typeName, baseName))
+    if exportClass:
+      typeDecl = getAst(declareTypeExport(typeName, baseName))
     else:
-      type_decl = getAst(declare_type(typeName, baseName))
+      typeDecl = getAst(declareType(typeName, baseName))
 
   # Inspect the tree structure:
   #
-  # echo type_decl.treeRepr
+  # echo typeDecl.treeRepr
   # --------------------
   # StmtList
   #   TypeSection
@@ -471,40 +471,40 @@ macro test_suite*(head: untyped, body: untyped): untyped =
   #           OfInherit
   #             Ident !"RootObj"
   #           Empty   <= We want to replace this
-  type_decl[0][0][2][0][2] = recList
+  typeDecl[0][0][2][0][2] = recList
 
   # insert the type declaration
-  result.insert(0, type_decl)
+  result.insert(0, typeDecl)
 
   # insert libs needed
-  result.insert(0, getAst(import_required_libs()))
+  result.insert(0, getAst(importRequiredLibs()))
   
-  result.add(run_tests)
+  result.add(runTests)
 
-  template add_test_suite(typeName)=
-    test_suites.add(typeName())
+  template addTestSuite(typeName)=
+    testSuites.add(typeName())
 
-  result.add(getAst(add_test_suite(typeName)))
+  result.add(getAst(addTestSuite(typeName)))
 
 
-proc run_tests*()=
+proc runTests*()=
   ## The method that runs the tests. Invoke
   ## after setting up all of the tests and 
   ## usually inside a "when isMainModule" block
-  for suite in test_suites:
+  for suite in testSuites:
     suite.setup()
 
-    styled_echo(styleBright,
+    styledEcho(styleBright,
                 fgYellow, "\n[Running]",
                 fgWhite, " $1\n".format(suite.name))
-    suite.run_tests()
+    suite.runTests()
 
     # Output red if tests didn't pass, green otherwise
     var color = fgGreen
-    if suite.tests_passed != suite.num_tests:
+    if suite.testsPassed != suite.numTests:
       color = fgRed
 
-    styled_echo(styleBright, color,
-                "\n[", $suite.tests_passed, "/", $suite.num_tests, "]",
+    styledEcho(styleBright, color,
+                "\n[", $suite.testsPassed, "/", $suite.numTests, "]",
                 fgWhite, " tests passed.\n")
 
