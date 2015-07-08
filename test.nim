@@ -10,8 +10,10 @@ testSuite UnitTests:
     self.assertTrue(self.testObj == 400)
 
   method setup()=
-    self.testObj = 5
     self.testObj = 90
+
+  method tearDown()=
+    self.testObj = 0
 
   method testForB()=
     var b = 0
@@ -29,8 +31,10 @@ testSuite UnitTestsNew:
     testObj: int
 
   method setup()=
-    self.testObj = 5
     self.testObj = 90
+
+  method tearDown()=
+    self.testObj = 0
 
   method testTestObj()=
     self.assertTrue(self.testObj == 90)
@@ -75,6 +79,11 @@ testSuite MoreInheritance of TestInherit:
     # This will make one of the tests inherited from UnitTestsNew
     # fail. This is expected.
     self.testObj = 12345
+
+  method tearDown()=
+    # Calling the direct parent's tearDown method
+    self.tearDownTestInherit()
+    self.testObj = 0
 
   method testTestObj()=
     # This method is overwritten. To call the base method,

@@ -13,7 +13,7 @@ Methods are used for inheritance, so if you want to derive a test suite, then yo
 
 If you don't want inheritance, you can just use procs.
 
-A special proc/method is called setup(). The macro will inject this method/proc if it doesn't exist and it will be called before running the test suite.
+Two special methods/procs are called setup() and tearDown(). The macro will inject these methods/procs if they don't exist and they will be called before and after running the test suite, respectively.
 
 Test methods/procs to be run are prefixed with "test" in the method/proc name. This is so that you can write tests that call procs that do other things and won't be run as a test.
 
@@ -42,6 +42,11 @@ testSuite SuiteName of TestSuite:
     ## do setup code here
     self.suiteVar = "Testing"
     self.testObj = 90
+
+  method tearDown()=
+    ## do tear down code here
+    self.suiteVar = nil
+    self.testObj = 0
 
   method testAddingString()=
     ## adds a string to the suiteVar

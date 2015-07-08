@@ -42,6 +42,10 @@ method setup*(suite: TestSuite)=
   ## Base method for setup code
   discard
 
+method tearDown*(suite: TestSuite)=
+  ## Base method for setup code
+  discard
+
 method runTests*(suite: TestSuite)=
   ## Base method for running tests
   discard
@@ -68,9 +72,10 @@ template returnException(name, testName, snip, vals)=
     exc.testName = testName
     raise exc
 
-# --------------------------- Templates for assertion --------------------------------------
+# ------------------------ Templates for assertion ----------------------------
 
-template assertEqual*(self: TestSuite, lhs: untyped, rhs: untyped): untyped {.immediate.}=
+template assertEqual*(self: TestSuite, lhs: untyped,
+                      rhs: untyped): untyped {.immediate.}=
   ## Raises a TestAssertError when the lhs and the rhs are not equal.
   if (lhs) != (rhs):
     var snip = astToStr(lhs) & ", " & astToStr(rhs)
@@ -104,7 +109,8 @@ template assertFalse*(self: TestSuite, code: untyped): untyped {.immediate.}=
     returnException("assertFalse", testName, snip, vals)
 
 
-template assertRaises*(self: TestSuite, error: Exception, code: untyped): untyped {.immediate.}=
+template assertRaises*(self: TestSuite, error: Exception,
+                       code: untyped): untyped {.immediate.}=
   ## Raises a TestAssertError when the exception "error" is
   ## not thrown in the code
   try:
@@ -130,7 +136,7 @@ template assertRaises*(self: TestSuite, error: Exception, code: untyped): untype
 
     discard
 
-# --------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 # A list to hold all test suites that are created
@@ -306,7 +312,9 @@ macro testSuite*(head: untyped, body: untyped): untyped =
 
   var runTests = getAst(runTestsProc(ident(objReference), typeName, baseMethodName, typeMethodName))
 
-  var foundSetup = false
+  var
+    foundSetup = false
+    foundTeardown = false
 
   # Make forward declarations so that function order
   # does not matter, just like in real OOP!
@@ -328,8 +336,10 @@ macro testSuite*(head: untyped, body: untyped): untyped =
 
         setNodeName(n2, procName, typeName)
 
-        if procName == "setup":
+        if procName.toLower() == "setup":
           foundSetup = true
+        if procName.toLower() == "teardown":
+          foundTeardown = true
       else:
         discard
 
@@ -341,12 +351,32 @@ macro testSuite*(head: untyped, body: untyped): untyped =
     template setupDecl(self, baseMethod)=
       method setup()=
         self.baseMethod()
-        discard
 
     var setupProcTypename = ident("setup" & $typeName.toStrLit())
     var baseMethodName = ident("setup" & $baseName.toStrLit())
     result.add(getAst(setupProc(ident(objReference), typeName, setupProcTypename)))
-    body.add(getAst(setupDecl(ident(objReference), baseMethodName))[0])
+    var setupBaseAst = getAst(setupDecl(ident(objReference), baseMethodName))
+    body.add(setupBaseAst[0])
+
+  if not foundTeardown:
+    template teardownProc(self, typeName, tdProc)=
+      method tearDown(self: typeName)
+      method tdProc(self: typeName)
+
+    template teardownDecl(self, baseMethod)=
+      method tearDown()=
+        when compiles(self.baseMethod()):
+          self.baseMethod()
+
+    var teardownProcTypename = ident("tearDown" & $typeName.toStrLit())
+    var baseTearMethodName = ident("tearDown" & $baseName.toStrLit())
+    result.add(getAst(teardownProc(ident(objReference),
+                                         typeName,
+                                         teardownProcTypename)))
+    var teardownBaseAst = getAst(teardownDecl(ident(objReference),
+                                              baseTearMethodName))
+    body.add(teardownBaseAst[0])
+
 
   # Iterate over the statements, adding `self: T`
   # to the parameters of functions
@@ -368,10 +398,12 @@ macro testSuite*(head: untyped, body: untyped): untyped =
 
         setNodeName(n2, procName, typeName)
 
-        if procName == "setup":
+        if procName.toLower() == "setup":
           let dotName = newDotExpr(ident(objReference), ident("name"))
           let setName = newAssignment(dotName, newLit(typeName))
           n2.body.add(setName)
+        elif procName.toLower() == "teardown":
+          discard
         elif procName.startswith("test"):
           let procCall = newDotExpr(ident(objReference),
                                      ident(procName & typeName))
@@ -498,6 +530,7 @@ proc runTests*()=
                 fgYellow, "\n[Running]",
                 fgWhite, " $1\n".format(suite.name))
     suite.runTests()
+    suite.tearDown()
 
     # Output red if tests didn't pass, green otherwise
     var color = fgGreen
