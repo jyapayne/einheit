@@ -19,6 +19,23 @@ import strutils
 when not defined(ECMAScript):
   import terminal
 
+proc `$`*[T](ar: openarray[T]): string=
+    ## Converts an array into a string
+    result = "["
+    if ar.len() > 0:
+        result &= $ar[0]
+    for i in 1..ar.len()-1:
+        result &= ", " & $ar[i]
+    result &= "]"
+    return result
+
+proc `==`*[T](ar: openarray[T], ar2: openarray[T]): bool=
+  if len(ar) != len(ar2):
+    return false
+  for i in countup(0, ar.len()):
+    if ar[i] != ar2[i]:
+      return false
+  return true
 
 type
   TestSuite = ref object of RootObj
@@ -136,6 +153,9 @@ template assertRaises*(self: TestSuite, error: Exception,
 
     discard
 
+template assert*(self: TestSuite, d: untyped, msg=""){.immediate.}=
+  assertTrue(self, d)
+
 # -----------------------------------------------------------------------------
 
 
@@ -183,6 +203,8 @@ macro testSuite*(head: untyped, body: untyped): untyped =
   ##
   ##  when isMainModule:
   ##    einheit.runTests()
+  ##
+
   
   # object reference name inside methods.
   # ie: self, self

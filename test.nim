@@ -3,6 +3,7 @@ import einheit
 testSuite UnitTests:
   var
     testObj: int
+    testArray: array[4, int]
 
   proc doThings()=
     # This proc won't be invoked as a test
@@ -11,6 +12,8 @@ testSuite UnitTests:
 
   method setup()=
     self.testObj = 90
+    for i in 0 ..< self.testArray.len():
+      self.testArray[i] = i
 
   method tearDown()=
     self.testObj = 0
@@ -19,6 +22,9 @@ testSuite UnitTests:
     var b = 0
     self.doThings()
     self.assertTrue(4 == 4)
+
+  method testArrayAssert()=
+    self.assertTrue(self.testArray == [0,1,2])
 
   method testForC()=
     var c = 0
@@ -44,6 +50,7 @@ testSuite UnitTestsNew:
 
   method testMore()=
     self.assertEqual("String", "String")
+    self.assert 0 == 1
 
   method testMoreMore()=
     self.assertFalse("String" != "String")
