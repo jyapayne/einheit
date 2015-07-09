@@ -8,7 +8,7 @@ testSuite UnitTests:
   proc doThings()=
     # This proc won't be invoked as a test
     self.testObj = 400
-    self.assertTrue(self.testObj == 400)
+    self.assert(self.testObj == 400)
 
   method setup()=
     self.testObj = 90
@@ -19,17 +19,17 @@ testSuite UnitTests:
     self.testObj = 0
 
   method testForB()=
-    var b = 0
+    var b = 4
     self.doThings()
-    self.assertTrue(4 == 4)
+    self.assert(b == 4)
 
   method testArrayAssert()=
-    self.assertTrue(self.testArray == [0,1,2])
+    self.assert(self.testArray == [0,1,2])
 
   method testForC()=
     var c = 0
     # supposed to fail
-    self.assertEqual(c, 1)
+    self.assert(c == 1)
 
 
 testSuite UnitTestsNew:
@@ -43,19 +43,20 @@ testSuite UnitTestsNew:
     self.testObj = 0
 
   method testTestObj()=
-    self.assertTrue(self.testObj == 90)
+    self.assert(self.testObj == 90)
 
   method testStuff()=
-    self.assertEqual("Stuff", "Stuff")
+    self.assert("Stuff" == "Stuff")
+
+  proc returnTrue(): bool=
+    return false
 
   method testMore()=
-    self.assertEqual("String", "String")
-    self.assert 0 == 1
+    var more = 23
+    self.assert(more == 1)
 
   method testMoreMore()=
-    self.assertFalse("String" != "String")
-
-
+    self.assert(self.returnTrue())
 
 # Inheritance!
 testSuite TestInherit of UnitTestsNew:
@@ -99,10 +100,10 @@ testSuite MoreInheritance of TestInherit:
     # However, currently this method will be run
     # IN ADDITION to the base class's method.
     # This one will pass, the other will fail
-    self.assertTrue(self.testObj == 12345)
+    self.assert(self.testObj == 12345)
 
   method testNewObj()=
-    self.assertEqual(self.testObj, 12345)
+    self.assert(self.testObj == 12345)
 
 
 when isMainModule:

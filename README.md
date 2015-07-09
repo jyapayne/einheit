@@ -51,7 +51,7 @@ testSuite SuiteName of TestSuite:
   method testAddingString()=
     ## adds a string to the suiteVar
     self.suiteVar &= " 123"
-    self.assertEqual(self.suiteVar, "Testing 123")
+    self.assert(self.suiteVar == "Testing 123")
 
   proc raisesOs()=
     # This proc won't be invoked as a test, it must begin with "test" in lowercase
@@ -65,10 +65,10 @@ testSuite SuiteName of TestSuite:
     self.assertRaises(OSError, self.raisesOs())
 
   method testTestObj()=
-    self.assertTrue(self.testObj == 90)
+    self.assert(self.testObj == 90)
 
   method testMoreMore()=
-    self.assertFalse("String" != "String")
+    self.assert("String" == "String")
 
   when isMainModule:
     einheit.runTests()
@@ -89,49 +89,71 @@ is this:
 [Running] UnitTests
 
 [OK]     testForB
+[Failed] testArrayAssert
+  Condition: assert(self.testArray == [0, 1, 2])
+  Reason: self.testArray == [0, 1, 2, 3]
+  Location: einheit.nim; line 160
 [Failed] testForC
-  Condition: assertTrue(c, 1)
-  Reason: c == 0; 0 != 1
-  Location: test.nim; line 24
+  Condition: assert(c == 1)
+  Reason: c == 0
+  Location: einheit.nim; line 160
 
-[1/2] tests passed.
+[1/3] tests passed.
 
 
 [Running] UnitTestsNew
 
 [OK]     testTestObj
 [OK]     testStuff
-[OK]     testMore
-[OK]     testMoreMore
+[Failed] testMore
+  Condition: assert(more == 1)
+  Reason: more == 23
+  Location: einheit.nim; line 160
+[Failed] testMoreMore
+  Condition: assert(self.returnTrue())
+  Reason: self.returnTrue() == false
+  Location: einheit.nim; line 160
 
-[4/4] tests passed.
+[2/4] tests passed.
 
 
 [Running] TestInherit
 
 [OK]     testTestObj
 [OK]     testStuff
-[OK]     testMore
-[OK]     testMoreMore
+[Failed] testMore
+  Condition: assert(more == 1)
+  Reason: more == 23
+  Location: einheit.nim; line 160
+[Failed] testMoreMore
+  Condition: assert(self.returnTrue())
+  Reason: self.returnTrue() == false
+  Location: einheit.nim; line 160
 [OK]     testRaises
 
-[5/5] tests passed.
+[3/5] tests passed.
 
 
 [Running] MoreInheritance
 
 [Failed] testTestObj
-  Condition: assertTrue(self.testObj == 90)
-  Reason: (self.testObj == 90) == false
-  Location: test.nim; line 36
+  Condition: assert(self.testObj == 90)
+  Reason: self.testObj == 12345
+  Location: einheit.nim; line 160
 [OK]     testStuff
-[OK]     testMore
-[OK]     testMoreMore
+[Failed] testMore
+  Condition: assert(more == 1)
+  Reason: more == 23
+  Location: einheit.nim; line 160
+[Failed] testMoreMore
+  Condition: assert(self.returnTrue())
+  Reason: self.returnTrue() == false
+  Location: einheit.nim; line 160
 [OK]     testRaises
 [OK]     testTestObj
 [OK]     testNewObj
 
-[6/7] tests passed.
+[4/7] tests passed.
 ```
 
 Notice that on failure, the test runner gives some useful information about the test in question. This is useful for determining why the test failed.

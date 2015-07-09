@@ -91,41 +91,6 @@ template returnException(name, testName, snip, vals)=
 
 # ------------------------ Templates for assertion ----------------------------
 
-template assertEqual*(self: TestSuite, lhs: untyped,
-                      rhs: untyped): untyped {.immediate.}=
-  ## Raises a TestAssertError when the lhs and the rhs are not equal.
-  if (lhs) != (rhs):
-    var snip = astToStr(lhs) & ", " & astToStr(rhs)
-
-    var
-      vals = "$3 == $1; $1 != $2".format(lhs, rhs, astToStr(lhs))
-      testName = self.currentTestName
-
-    returnException("assertTrue", testName, snip, vals)
-
-template assertTrue*(self: TestSuite, code: untyped): untyped {.immediate.}=
-  ## Raises a TestAssertError when the code is false.
-  if not code:
-    var snip = astToStr(code)
-
-    var
-      vals = "($1) == $2".format(snip, code)
-      testName = self.currentTestName
-
-    returnException("assertTrue", testName, snip, vals)
-
-template assertFalse*(self: TestSuite, code: untyped): untyped {.immediate.}=
-  ## Raises a TestAssertError when the code is true.
-  if code:
-    var snip = astToStr(code)
-
-    var
-      vals = "($1) == $2".format(snip, code)
-      testName = self.currentTestName
-
-    returnException("assertFalse", testName, snip, vals)
-
-
 template assertRaises*(self: TestSuite, error: Exception,
                        code: untyped): untyped {.immediate.}=
   ## Raises a TestAssertError when the exception "error" is
@@ -151,10 +116,48 @@ template assertRaises*(self: TestSuite, error: Exception,
 
     returnException("assertRaises", testName, snip, vals)
 
-    discard
+macro isInfix(code: untyped): untyped=
+  if code.kind == nnkInfix:
+    return newLit(true)
+  return newLit(false)
 
-template assert*(self: TestSuite, d: untyped, msg=""){.immediate.}=
-  assertTrue(self, d)
+macro getLhs(code: untyped): untyped=
+  return code[1].toStrLit()
+
+macro getLhsVal(code: untyped): untyped=
+  return code[1]
+
+macro getRhs(code: untyped): untyped=
+  return code[2]
+
+macro getRhsVal(code: untyped): untyped=
+  return code[2]
+
+template assert*(self: TestSuite, code: untyped){.immediate.}=
+  ## Assertions for tests
+  if not code:
+
+    var
+      snip = ""
+      vals = ""
+      testName = self.currentTestName
+
+    when isInfix(code) == 0:
+      snip = astToStr(code)
+      vals = "$1 == $2".format(snip, code)
+    else:
+      snip = astToStr(code)
+      var
+        lhs = getLhs(code)
+        lhsVal = getLhsVal(code)
+        rhs = getRhs(code)
+        rhsVal = getRhsVal(code)
+      if $lhs != $lhsVal:
+        vals &= "$1 == $2".format(lhs, lhsVal)
+      if $rhs != $rhsVal:
+        vals &= "$1 == $2".format(rhs, rhsVal)
+
+    returnException("assert", testName, snip, vals)
 
 # -----------------------------------------------------------------------------
 
