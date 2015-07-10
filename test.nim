@@ -8,7 +8,7 @@ testSuite UnitTests:
   proc doThings()=
     # This proc won't be invoked as a test
     self.testObj = 400
-    self.assert(self.testObj == 400)
+    self.check(self.testObj == 400)
 
   method setup()=
     self.testObj = 90
@@ -21,15 +21,15 @@ testSuite UnitTests:
   method testForB()=
     var b = 4
     self.doThings()
-    self.assert(b == 4)
+    self.check(b == 4)
 
   method testArrayAssert()=
-    self.assert(self.testArray == [0,1,2])
+    self.check(self.testArray == [0,1,2])
 
   method testForC()=
     var c = 0
     # supposed to fail
-    self.assert(c == 1)
+    self.check(c == 1)
 
 
 testSuite UnitTestsNew:
@@ -43,20 +43,20 @@ testSuite UnitTestsNew:
     self.testObj = 0
 
   method testTestObj()=
-    self.assert(self.testObj == 90)
+    self.check(self.testObj == 90)
 
   method testStuff()=
-    self.assert("Stuff" == "Stuff")
+    self.check("Stuff" == "Stuff")
 
   proc returnTrue(): bool=
     return false
 
   method testMore()=
     var more = 23
-    self.assert(more == 1)
+    self.check(more == 1)
 
   method testMoreMore()=
-    self.assert(self.returnTrue())
+    self.check(self.returnTrue())
 
 # Inheritance!
 testSuite TestInherit of UnitTestsNew:
@@ -64,15 +64,15 @@ testSuite TestInherit of UnitTestsNew:
 
   proc raisesOs()=
     # This proc won't be invoked as a test
-    raise newException(OSError, "Oh no! OS malfunction!")
+    raise newException(Exception, "Oh no! OS malfunction!")
 
   method testRaises()=
 
-    # Two ways of asserting
-    self.assertRaises OSError:
+    # Two ways of checking
+    self.checkRaises OSError:
       self.raisesOs()
 
-    self.assertRaises(OSError, self.raisesOs())
+    self.checkRaises(OSError, self.raisesOs())
 
 
 testSuite MoreInheritance of TestInherit:
@@ -100,10 +100,10 @@ testSuite MoreInheritance of TestInherit:
     # However, currently this method will be run
     # IN ADDITION to the base class's method.
     # This one will pass, the other will fail
-    self.assert(self.testObj == 12345)
+    self.check(self.testObj == 12345)
 
   method testNewObj()=
-    self.assert(self.testObj == 12345)
+    self.check(self.testObj == 12345)
 
 
 when isMainModule:

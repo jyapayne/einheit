@@ -9,13 +9,13 @@
 ##
 ##  testSuite UnitTests:
 ##    proc thisIsATest()=
-##      self.assertEquals(1, 1)
-##      self.assertTrue(2 != 3)
-##      self.assertFalse(3 == 4)
-##      self.assertRaises(OSError, newException(OSError, "OS is exploding!"))
+##      self.check(1 == 1)
+##      self.checkRaises(OSError, newException(OSError, "OS is exploding!"))
 ##
 import macros
 import strutils
+import tables
+
 when not defined(ECMAScript):
   import terminal
 
@@ -46,7 +46,7 @@ type
     numTests: int
 
   TestAssertError = object of Exception
-    ## assertTrue and other assert_* statements will raise
+    ## checkTrue and other check_* statements will raise
     ## this exception when the condition fails
     lineNumber: int
     fileName: string
@@ -69,17 +69,20 @@ method runTests*(suite: TestSuite)=
 
 # ------------------------------------
 
-
-template returnException(name, testName, snip, vals)=
+template returnException(name, testName, snip, vals, pos, posRel)=
     ## private template for raising an exception
-    let pos = instantiationInfo(fullpaths=true)
-    let posRel = instantiationInfo()
     var
       filename = posRel.filename
       line = pos.line
     var message = "\n"
     message &= "  Condition: $2($1)\n".format(snip.replace("\n","").strip(), name)
-    message &= "  Reason: $1\n".format(vals)
+    try:
+      message &= "  Where:\n"
+      for k, v in vals.pairs:
+        message &= "    $1 -> $2\n".format(k, v)
+    except:
+      message &= "  Reason: $1\n".format(vals)
+
     message &= "  Location: $1; line $2".format(filename, line)
 
     var exc = newException(TestAssertError, message)
@@ -89,20 +92,24 @@ template returnException(name, testName, snip, vals)=
     exc.testName = testName
     raise exc
 
-# ------------------------ Templates for assertion ----------------------------
+# ------------------------ Templates for checkion ----------------------------
 
-template assertRaises*(self: TestSuite, error: Exception,
+template checkRaises*(self: TestSuite, error: Exception,
                        code: untyped): untyped {.immediate.}=
   ## Raises a TestAssertError when the exception "error" is
   ## not thrown in the code
+  let
+    pos = instantiationInfo(fullpaths=true)
+    posRel = instantiationInfo()
+
   try:
     code
     var
-      snip = astToStr(code)
-      vals = "No Exception Raised"
+      snip = astToStr(code).strip()
+      vals = {snip: "No Exception Raised"}.toTable()
       testName = self.currentTestName
 
-    returnException("assertRaises", testName, snip, vals)
+    returnException("checkRaises", testName, snip, vals, pos, posRel)
 
   except error:
     discard
@@ -110,54 +117,76 @@ template assertRaises*(self: TestSuite, error: Exception,
     raise
   except Exception:
     var
-      snip = astToStr(code)
-      vals = "Exception != $1".format(astToStr(error))
+      snip = astToStr(code).strip()
+      vals = {snip: "not equal to $1".format(astToStr(error))}.toTable()
       testName = self.currentTestName
 
-    returnException("assertRaises", testName, snip, vals)
+    returnException("checkRaises", testName, snip, vals, pos, posRel)
 
-macro isInfix(code: untyped): untyped=
-  if code.kind == nnkInfix:
-    return newLit(true)
-  return newLit(false)
+template recursive(node, action): expr {.dirty.} =
+  proc helper(child: NimNode): NimNode {.gensym.} =
+    action
+    result = child.copy()
+    for c in child.children:
+      if child.kind == nnkCall and c.kind == nnkDotExpr:
+        continue
+      result.add helper(c)
+  discard helper(node)
 
-macro getLhs(code: untyped): untyped=
-  return code[1].toStrLit()
+template strRep(n: NimNode): untyped=
+  newNimNode(nnkPrefix).add(ident("$"), newNimNode(nnkPar).add(n))
 
-macro getLhsVal(code: untyped): untyped=
-  return code[1]
+template tableEntry(n: NimNode): untyped=
+  newNimNode(nnkExprColonExpr).add(n.toStrLit(), strRep(n))
 
-macro getRhs(code: untyped): untyped=
-  return code[2]
+macro getSyms(code:untyped): untyped=
+  var
+    tableCall = newNimNode(nnkCall).add(ident("toTable"))
+    tableConstr = newNimNode(nnkTableConstr)
 
-macro getRhsVal(code: untyped): untyped=
-  return code[2]
+  recursive(code):
+    let ch1 = child
+    if ch1.kind == nnkInfix:
+      if child[1].kind == nnkIdent:
+        tableConstr.add(tableEntry(child[1]))
+      if child[2].kind == nnkIdent:
+        tableConstr.add(tableEntry(child[2]))
+    elif ch1.kind == nnkExprColonExpr:
+      if child[0].kind == nnkIdent:
+        tableConstr.add(tableEntry(child[0]))
+      if child[1].kind == nnkIdent:
+        tableConstr.add(tableEntry(child[1]))
+    elif ch1.kind == nnkCall or ch1.kind == nnkCommand:
+      tableConstr.add(tableEntry(ch1))
+      for i in 1..<ch1.len():
+        tableConstr.add(tableEntry(ch1[i]))
+    elif ch1.kind == nnkDotExpr:
+      tableConstr.add(tableEntry(ch1))
+  if tableConstr.len() != 0:
+    tableCall.add(tableConstr)
+    result = tableCall
+  else:
+    template emptyTable()=
+      newTable[string, string]()
+    result = getAst(emptyTable())
 
-template assert*(self: TestSuite, code: untyped){.immediate.}=
+
+template check*(self: TestSuite, code: untyped){.immediate.}=
   ## Assertions for tests
   if not code:
+    # These need to be here to capture the actual info
+    let
+      pos = instantiationInfo(fullpaths=true)
+      posRel = instantiationInfo()
 
     var
       snip = ""
-      vals = ""
       testName = self.currentTestName
 
-    when isInfix(code) == 0:
-      snip = astToStr(code)
-      vals = "$1 == $2".format(snip, code)
-    else:
-      snip = astToStr(code)
-      var
-        lhs = getLhs(code)
-        lhsVal = getLhsVal(code)
-        rhs = getRhs(code)
-        rhsVal = getRhsVal(code)
-      if $lhs != $lhsVal:
-        vals &= "$1 == $2".format(lhs, lhsVal)
-      if $rhs != $rhsVal:
-        vals &= "$1 == $2".format(rhs, rhsVal)
+    var vals = getSyms(code)
+    snip = astToStr(code)
 
-    returnException("assert", testName, snip, vals)
+    returnException("check", testName, snip, vals, pos, posRel)
 
 # -----------------------------------------------------------------------------
 
@@ -202,7 +231,7 @@ macro testSuite*(head: untyped, body: untyped): untyped =
   ##    method testAddingString()=
   ##      ## adds a string to the suiteVar
   ##      self.suiteVar &= " 123"
-  ##      self.assertEqual(self.suiteVar, "Testing 123")
+  ##      self.check(self.suiteVar == "Testing 123")
   ##
   ##  when isMainModule:
   ##    einheit.runTests()
@@ -216,6 +245,7 @@ macro testSuite*(head: untyped, body: untyped): untyped =
 
   template importRequiredLibs()=
     import strutils
+    import tables
     when not defined(ECMAScript):
       import terminal
 
@@ -447,7 +477,7 @@ macro testSuite*(head: untyped, body: untyped): untyped =
               let e = (ref TestAssertError)(getCurrentException())
               styledEcho(styleBright,
                           fgRed, "[Failed]",
-                          fgWhite, " ", self.currentTestName, e.msg)
+                          fgWhite, " ", self.currentTestName, e.msg, "\n")
 
           runTests[0][6].add(getAst(setTestName(ident(objReference), procName)))
           runTests[0][6].add(getAst(tryBlock(ident(objReference), procCall)))
@@ -550,10 +580,14 @@ proc runTests*()=
   ## usually inside a "when isMainModule" block
   for suite in testSuites:
     suite.setup()
-
+    var numTicks = 80 - 12 - len(suite.name)
+    var ticks = ""
+    for i in 0..<numTicks:
+      ticks &= "-"
     styledEcho(styleBright,
                 fgYellow, "\n[Running]",
-                fgWhite, " $1\n".format(suite.name))
+                fgWhite, " $1 ".format(suite.name),
+                fgYellow, " ", ticks, "\n")
     suite.runTests()
     suite.tearDown()
 
@@ -562,7 +596,16 @@ proc runTests*()=
     if suite.testsPassed != suite.numTests:
       color = fgRed
 
+    var passedStr = "[" & $suite.testsPassed & "/" & $suite.numTests & "]"
+
+    ticks = " "
+    numTicks = 80 - len(passedStr) - 20 - len(suite.name)
+
+    for i in 0..<numTicks:
+      ticks &= "-"
+
     styledEcho(styleBright, color,
-                "\n[", $suite.testsPassed, "/", $suite.numTests, "]",
-                fgWhite, " tests passed.\n")
+                "\n", passedStr,
+                fgWhite, " tests passed for ", suite.name, ".",
+                fgYellow, ticks, "\n")
 

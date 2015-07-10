@@ -51,24 +51,24 @@ testSuite SuiteName of TestSuite:
   method testAddingString()=
     ## adds a string to the suiteVar
     self.suiteVar &= " 123"
-    self.assert(self.suiteVar == "Testing 123")
+r   self.check(self.suiteVar == "Testing 123")
 
   proc raisesOs()=
     # This proc won't be invoked as a test, it must begin with "test" in lowercase
     raise newException(OSError, "Oh no! OS malfunction!")
   
   method testRaises()=
-    # Two ways of asserting
-    self.assertRaises OSError:
+    # Two ways of checking
+    self.checkRaises OSError:
       self.raisesOs()
 
-    self.assertRaises(OSError, self.raisesOs())
+    self.checkRaises(OSError, self.raisesOs())
 
   method testTestObj()=
-    self.assert(self.testObj == 90)
+    self.check(self.testObj == 90)
 
   method testMoreMore()=
-    self.assert("String" == "String")
+    self.check("String" == "String")
 
   when isMainModule:
     einheit.runTests()
@@ -86,74 +86,102 @@ nim c -r test.nim
 is this:
 
 ```
-[Running] UnitTests
+[Running] UnitTests  -----------------------------------------------------------
 
 [OK]     testForB
 [Failed] testArrayAssert
-  Condition: assert(self.testArray == [0, 1, 2])
-  Reason: self.testArray == [0, 1, 2, 3]
-  Location: einheit.nim; line 160
+  Condition: check(self.testArray == [0, 1, 2])
+  Where:
+    self.testArray -> [0, 1, 2, 3]
+  Location: test.nim; line 27
+
 [Failed] testForC
-  Condition: assert(c == 1)
-  Reason: c == 0
-  Location: einheit.nim; line 160
-
-[1/3] tests passed.
-
-
-[Running] UnitTestsNew
-
-[OK]     testTestObj
-[OK]     testStuff
-[Failed] testMore
-  Condition: assert(more == 1)
-  Reason: more == 23
-  Location: einheit.nim; line 160
-[Failed] testMoreMore
-  Condition: assert(self.returnTrue())
-  Reason: self.returnTrue() == false
-  Location: einheit.nim; line 160
-
-[2/4] tests passed.
+  Condition: check(c == 1)
+  Where:
+    c -> 0
+  Location: test.nim; line 32
 
 
-[Running] TestInherit
+[1/3] tests passed for UnitTests. ----------------------------------------------
+
+
+[Running] UnitTestsNew  --------------------------------------------------------
 
 [OK]     testTestObj
 [OK]     testStuff
 [Failed] testMore
-  Condition: assert(more == 1)
-  Reason: more == 23
-  Location: einheit.nim; line 160
+  Condition: check(more == 1)
+  Where:
+    more -> 23
+  Location: test.nim; line 56
+
 [Failed] testMoreMore
-  Condition: assert(self.returnTrue())
-  Reason: self.returnTrue() == false
-  Location: einheit.nim; line 160
-[OK]     testRaises
-
-[3/5] tests passed.
+  Condition: check(self.returnTrue())
+  Where:
+    self.returnTrue() -> false
+  Location: test.nim; line 59
 
 
-[Running] MoreInheritance
+[2/4] tests passed for UnitTestsNew. -------------------------------------------
+
+
+[Running] TestInherit  ---------------------------------------------------------
+
+[OK]     testTestObj
+[OK]     testStuff
+[Failed] testMore
+  Condition: check(more == 1)
+  Where:
+    more -> 23
+  Location: test.nim; line 56
+
+[Failed] testMoreMore
+  Condition: check(self.returnTrue())
+  Where:
+    self.returnTrue() -> false
+  Location: test.nim; line 59
+
+[Failed] testRaises
+  Condition: checkRaises(self.raisesOs())
+  Where:
+    self.raisesOs() -> not equal to OSError
+  Location: test.nim; line 72
+
+
+[2/5] tests passed for TestInherit. --------------------------------------------
+
+
+[Running] MoreInheritance  -----------------------------------------------------
 
 [Failed] testTestObj
-  Condition: assert(self.testObj == 90)
-  Reason: self.testObj == 12345
-  Location: einheit.nim; line 160
+  Condition: check(self.testObj == 90)
+  Where:
+    self.testObj -> 12345
+  Location: test.nim; line 46
+
 [OK]     testStuff
 [Failed] testMore
-  Condition: assert(more == 1)
-  Reason: more == 23
-  Location: einheit.nim; line 160
+  Condition: check(more == 1)
+  Where:
+    more -> 23
+  Location: test.nim; line 56
+
 [Failed] testMoreMore
-  Condition: assert(self.returnTrue())
-  Reason: self.returnTrue() == false
-  Location: einheit.nim; line 160
-[OK]     testRaises
+  Condition: check(self.returnTrue())
+  Where:
+    self.returnTrue() -> false
+  Location: test.nim; line 59
+
+[Failed] testRaises
+  Condition: checkRaises(self.raisesOs())
+  Where:
+    self.raisesOs() -> not equal to OSError
+  Location: test.nim; line 72
+
 [OK]     testTestObj
 [OK]     testNewObj
 
-[4/7] tests passed.
+[3/7] tests passed for MoreInheritance. ----------------------------------------
 ```
 
 Notice that on failure, the test runner gives some useful information about the test in question. This is useful for determining why the test failed.
