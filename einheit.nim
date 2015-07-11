@@ -49,12 +49,15 @@ type
     numTests: int
 
   TestAssertError = object of Exception
-    ## checkTrue and other check_* statements will raise
+    ## check and other check* statements will raise
     ## this exception when the condition fails
     lineNumber: int
     fileName: string
     codeSnip: string
     testName: string
+    checkFuncName: string
+    valTable: Table[string, string]
+
 
 # -- Methods for the TestSuite base --
 
@@ -78,13 +81,10 @@ template returnException(name, testName, snip, vals, pos, posRel)=
       filename = posRel.filename
       line = pos.line
     var message = "\n"
-    message &= "  Condition: $2($1)\n".format(snip.replace("\n","").strip(), name)
-    try:
-      message &= "  Where:\n"
-      for k, v in vals.pairs:
-        message &= "    $1 -> $2\n".format(k, v)
-    except:
-      message &= "  Reason: $1\n".format(vals)
+    message &= "  Condition: $2($1)\n".format(snip, name)
+    message &= "  Where:\n"
+    for k, v in vals.pairs:
+      message &= "    $1 -> $2\n".format(k, v)
 
     message &= "  Location: $1; line $2".format(filename, line)
 
@@ -93,6 +93,8 @@ template returnException(name, testName, snip, vals, pos, posRel)=
     exc.lineNumber = line
     exc.codeSnip = snip
     exc.testName = testName
+    exc.valTable = vals
+    exc.checkFuncName = name
     raise exc
 
 # ------------------------ Templates for checkion ----------------------------
@@ -108,10 +110,10 @@ template checkRaises*(self: TestSuite, error: Exception,
   try:
     code
     var
-      snip = "$1, $2".format(astToStr(error), astToStr(code).strip())
-      vals = {astToStr(code).strip(): "No Exception Raised"}.toTable()
+      codeStr = astToStr(code).split().join(" ")
+      snip = "$1, $2".format(astToStr(error), codeStr)
+      vals = {codeStr: "No Exception Raised"}.toTable()
       testName = self.currentTestName
-
     returnException("checkRaises", testName, snip, vals, pos, posRel)
 
   except error:
@@ -121,8 +123,9 @@ template checkRaises*(self: TestSuite, error: Exception,
   except Exception:
     var
       e = getCurrentException()
-      snip = "$1, $2".format(astToStr(error), astToStr(code).strip())
-      vals = {astToStr(code).strip(): e.name}.toTable()
+      codeStr = astToStr(code).split().join(" ")
+      snip = "$1, $2".format(astToStr(error), codeStr)
+      vals = {codeStr: $e.name}.toTable()
       testName = self.currentTestName
 
     returnException("checkRaises", testName, snip, vals, pos, posRel)
@@ -171,7 +174,7 @@ macro getSyms(code:untyped): untyped=
     result = tableCall
   else:
     template emptyTable()=
-      newTable[string, string]()
+      initTable[string, string]()
     result = getAst(emptyTable())
 
 
@@ -189,7 +192,7 @@ template check*(self: TestSuite, code: untyped){.immediate.}=
 
     var vals = getSyms(code)
     # get ast string with extra spaces ignored
-    snip = astToStr(code).replace("  ", " ")
+    snip = astToStr(code).split().join(" ")
 
     returnException("check", testName, snip, vals, pos, posRel)
 
@@ -484,7 +487,19 @@ macro testSuite*(head: untyped, body: untyped): untyped =
               let e = (ref TestAssertError)(getCurrentException())
               styledEcho(styleBright,
                           fgRed, "[Failed]",
-                          fgWhite, " ", self.currentTestName, e.msg, "\n")
+                          fgWhite, " ", self.currentTestName)
+              let
+                name = e.checkFuncName
+                snip = e.codeSnip
+                line = e.lineNumber
+                filename = e.fileName
+                vals = e.valTable
+              styledEcho(styleDim, fgWhite, "  Condition: $2($1)\n".format(snip, name), "  Where:")
+              for k, v in vals.pairs:
+                styledEcho(styleDim, fgCyan, "    ", k,
+                           fgWhite, " -> ",
+                           fgGreen, v)
+              styledEcho(styleDim, fgWhite, "  Location: $1; line $2\n".format(filename, line))
 
           runTests[0][6].add(getAst(setTestName(ident(objReference), procName)))
           runTests[0][6].add(getAst(tryBlock(ident(objReference), procCall)))
