@@ -19,6 +19,8 @@ Test methods/procs to be run are prefixed with "test" in the method/proc name. T
 
 For each suite method/proc, an implicit variable called "self" is added. This lets you access the testSuite in an OO kind of way.
 
+On failure, the macro gathers names and values of *all* arguments and functions and prints them out. It's really useful for debugging!
+
 ### Installation
 
 Install with nimble!
