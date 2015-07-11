@@ -15,7 +15,7 @@
 import macros
 import strutils
 import tables
-
+import typetraits
 when not defined(ECMAScript):
   import terminal
 
@@ -28,6 +28,9 @@ proc `$`*[T](ar: openarray[T]): string=
         result &= ", " & $ar[i]
     result &= "]"
     return result
+
+proc `$`*(s: ref object): string=
+  result = "ref " & ($s[]).replace(":ObjectType", "")
 
 proc `==`*[T](ar: openarray[T], ar2: openarray[T]): bool=
   if len(ar) != len(ar2):
@@ -105,8 +108,8 @@ template checkRaises*(self: TestSuite, error: Exception,
   try:
     code
     var
-      snip = astToStr(code).strip()
-      vals = {snip: "No Exception Raised"}.toTable()
+      snip = "$1, $2".format(astToStr(error), astToStr(code).strip())
+      vals = {astToStr(code).strip(): "No Exception Raised"}.toTable()
       testName = self.currentTestName
 
     returnException("checkRaises", testName, snip, vals, pos, posRel)
@@ -117,8 +120,9 @@ template checkRaises*(self: TestSuite, error: Exception,
     raise
   except Exception:
     var
-      snip = astToStr(code).strip()
-      vals = {snip: "not equal to $1".format(astToStr(error))}.toTable()
+      e = getCurrentException()
+      snip = "$1, $2".format(astToStr(error), astToStr(code).strip())
+      vals = {astToStr(code).strip(): e.name}.toTable()
       testName = self.currentTestName
 
     returnException("checkRaises", testName, snip, vals, pos, posRel)
@@ -134,10 +138,10 @@ template recursive(node, action): expr {.dirty.} =
   discard helper(node)
 
 template strRep(n: NimNode): untyped=
-  newNimNode(nnkPrefix).add(ident("$"), newNimNode(nnkPar).add(n))
+  $(n)
 
 template tableEntry(n: NimNode): untyped=
-  newNimNode(nnkExprColonExpr).add(n.toStrLit(), strRep(n))
+  newNimNode(nnkExprColonExpr).add(n.toStrLit(), getAst(strRep(n)))
 
 macro getSyms(code:untyped): untyped=
   var
@@ -184,7 +188,8 @@ template check*(self: TestSuite, code: untyped){.immediate.}=
       testName = self.currentTestName
 
     var vals = getSyms(code)
-    snip = astToStr(code)
+    # get ast string with extra spaces ignored
+    snip = astToStr(code).replace("  ", " ")
 
     returnException("check", testName, snip, vals, pos, posRel)
 
@@ -246,6 +251,7 @@ macro testSuite*(head: untyped, body: untyped): untyped =
   template importRequiredLibs()=
     import strutils
     import tables
+    import typetraits
     when not defined(ECMAScript):
       import terminal
 
@@ -405,7 +411,8 @@ macro testSuite*(head: untyped, body: untyped): untyped =
 
     template setupDecl(self, baseMethod)=
       method setup()=
-        self.baseMethod()
+        when compiles(self.baseMethod()):
+          self.baseMethod()
 
     var setupProcTypename = ident("setup" & $typeName.toStrLit())
     var baseMethodName = ident("setup" & $baseName.toStrLit())

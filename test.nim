@@ -105,6 +105,34 @@ testSuite MoreInheritance of TestInherit:
   method testNewObj()=
     self.check(self.testObj == 12345)
 
+  proc doStuff(arg: int, arg2: string): string=
+    result = $arg & arg2
+
+  method testComplex()=
+
+    type
+      TestObj = ref object
+        t: int
+      Person = tuple[name: string, age: int]
+
+    proc `==`(d: TestObj, d2: TestObj): bool=
+      return d.t == d2.t
+
+    var
+      a = 5
+      s = "stuff"
+      y = 45
+
+      t: Person = (name: "Peter", age: 30)
+      r: Person = (name: "P", age: 3)
+      d = TestObj(t: 3)
+      k = TestObj(t: 30)
+
+    self.check(t != r)
+    self.check(d != k)
+
+    self.check(self.doStuff(a, s) == "5stuff" and self.doStuff(a, self.doStuff(a, self.doStuff(y, s))) == "something?")
+
 
 when isMainModule:
   runTests()
