@@ -142,9 +142,9 @@ is this:
   Location: test.nim; line 59
 
 [Failed] testRaises
-  Condition: checkRaises(self.raisesOs())
+  Condition: checkRaises(OSError, self.raisesOs())
   Where:
-    self.raisesOs() -> not equal to OSError
+    self.raisesOs() -> Exception
   Location: test.nim; line 72
 
 
@@ -173,15 +173,27 @@ is this:
   Location: test.nim; line 59
 
 [Failed] testRaises
-  Condition: checkRaises(self.raisesOs())
+  Condition: checkRaises(OSError, self.raisesOs())
   Where:
-    self.raisesOs() -> not equal to OSError
+    self.raisesOs() -> Exception
   Location: test.nim; line 72
 
 [OK]     testTestObj
 [OK]     testNewObj
+[Failed] testComplex
+  Condition: check(self.doStuff(a, s) == "5stuff" and  self.doStuff(a, self.doStuff(a, self.doStuff(y, s))) == "something?")
+  Where:
+    self.doStuff(a, s) -> 5stuff
+    a -> 5
+    self.doStuff(a, self.doStuff(a, self.doStuff(y, s))) -> 5545stuff
+    y -> 45
+    s -> stuff
+    self.doStuff(y, s) -> 45stuff
+    self.doStuff(a, self.doStuff(y, s)) -> 545stuff
+  Location: test.nim; line 134
 
-[3/7] tests passed for MoreInheritance. ----------------------------------------
+
+[3/8] tests passed for MoreInheritance. ----------------------------------------
 ```
 
 Notice that on failure, the test runner gives some useful information about the test in question. This is useful for determining why the test failed.
