@@ -29,8 +29,10 @@ proc `$`*[T](ar: openarray[T]): string=
     result &= "]"
     return result
 
+proc `$`*[T](some:typedesc[T]): string = name(T)
+
 proc `$`*(s: ref object): string=
-  result = "ref " & ($s[]).replace(":ObjectType", "")
+  result = ($type(s)).replace(":ObjectType", "") & $s[]
 
 proc `==`*[T](ar: openarray[T], ar2: openarray[T]): bool=
   if len(ar) != len(ar2):
@@ -480,26 +482,60 @@ macro testSuite*(head: untyped, body: untyped): untyped =
             self.numTests += 1
             try:
               testCall
-              styledEcho(styleBright, fgGreen, "[OK]",
-                          fgWhite, "     ", self.currentTestName)
+              when defined(quiet):
+                when defined(noColors):
+                  stdout.write(".")
+                else:
+                  setForegroundColor(fgGreen)
+                  writeStyled(".", {styleBright})
+                  setForegroundColor(fgWhite)
+              else:
+                when not defined(noColors):
+                  styledEcho(styleBright, fgGreen, "[OK]",
+                             fgWhite, "     ", self.currentTestName)
+                else:
+                  echo "[OK]     $1".format(self.currentTestName)
+
               self.testsPassed += 1
             except TestAssertError:
               let e = (ref TestAssertError)(getCurrentException())
-              styledEcho(styleBright,
-                          fgRed, "[Failed]",
-                          fgWhite, " ", self.currentTestName)
-              let
-                name = e.checkFuncName
-                snip = e.codeSnip
-                line = e.lineNumber
-                filename = e.fileName
-                vals = e.valTable
-              styledEcho(styleDim, fgWhite, "  Condition: $2($1)\n".format(snip, name), "  Where:")
-              for k, v in vals.pairs:
-                styledEcho(styleDim, fgCyan, "    ", k,
-                           fgWhite, " -> ",
-                           fgGreen, v)
-              styledEcho(styleDim, fgWhite, "  Location: $1; line $2\n".format(filename, line))
+
+              when defined(quiet):
+                when defined(noColors):
+                  stdout.write("F")
+                else:
+                  setForegroundColor(fgRed)
+                  writeStyled("F", {styleBright})
+                  setForegroundColor(fgWhite)
+              else:
+                when not defined(noColors):
+                  styledEcho(styleBright,
+                             fgRed, "[Failed]",
+                             fgWhite, " ", self.currentTestName)
+                else:
+                  echo "[Failed] $1".format(self.currentTestName)
+
+                let
+                  name = e.checkFuncName
+                  snip = e.codeSnip
+                  line = e.lineNumber
+                  filename = e.fileName
+                  vals = e.valTable
+
+                when not defined(noColors):
+                  styledEcho(styleDim, fgWhite, "  Condition: $2($1)\n".format(snip, name), "  Where:")
+                  for k, v in vals.pairs:
+                    styledEcho(styleDim, fgCyan, "    ", k,
+                               fgWhite, " -> ",
+                               fgGreen, v)
+                  styledEcho(styleDim, fgWhite, "  Location: $1; line $2\n".format(filename, line))
+                else:
+                  echo "  Condition: $2($1)".format(snip, name)
+                  echo "  Where:"
+                  for k, v in vals.pairs:
+                    echo "    ", k, " -> ", v
+                  echo "  Location: $1; line $2\n".format(filename, line)
+
 
           runTests[0][6].add(getAst(setTestName(ident(objReference), procName)))
           runTests[0][6].add(getAst(tryBlock(ident(objReference), procCall)))
@@ -600,21 +636,41 @@ proc runTests*()=
   ## The method that runs the tests. Invoke
   ## after setting up all of the tests and 
   ## usually inside a "when isMainModule" block
+  var
+    totalTests = 0
+    totalTestsPassed = 0
+
+  when defined(quiet):
+    echo ""
+
   for suite in testSuites:
     suite.setup()
-    var numTicks = 80 - 12 - len(suite.name)
-    var ticks = ""
+
+    var
+      numTicks = 80 - 12 - len(suite.name)
+      ticks = ""
+
     for i in 0..<numTicks:
       ticks &= "-"
-    styledEcho(styleBright,
-                fgYellow, "\n[Running]",
-                fgWhite, " $1 ".format(suite.name),
-                fgYellow, " ", ticks, "\n")
+
+    when not defined(quiet):
+      when not defined(noColors):
+        styledEcho(styleBright,
+                    fgYellow, "\n[Running]",
+                    fgWhite, " $1 ".format(suite.name),
+                    fgYellow, " ", ticks, "\n")
+      else:
+        echo "\n[Running] $1  $2\n".format(suite.name, ticks)
+
     suite.runTests()
     suite.tearDown()
 
+    totalTests += suite.numTests
+    totalTestsPassed += suite.testsPassed
+
     # Output red if tests didn't pass, green otherwise
     var color = fgGreen
+
     if suite.testsPassed != suite.numTests:
       color = fgRed
 
@@ -626,8 +682,38 @@ proc runTests*()=
     for i in 0..<numTicks:
       ticks &= "-"
 
-    styledEcho(styleBright, color,
-                "\n", passedStr,
-                fgWhite, " tests passed for ", suite.name, ".",
-                fgYellow, ticks, "\n")
+    when not defined(quiet):
+      when not defined(noColors):
+        styledEcho(styleBright, color,
+                    "\n", passedStr,
+                    fgWhite, " tests passed for ", suite.name, ".",
+                    fgYellow, ticks, "\n")
+      else:
+        echo "\n$1 tests passed for $2.$3\n".format(passedStr, suite.name, ticks)
+
+  var summaryColor = fgGreen
+
+  if totalTestsPassed != totalTests:
+    summaryColor = fgRed
+
+  var passedStr = "[" & $totalTestsPassed & "/" & $totalTests & "]"
+
+  when defined(quiet):
+    when not defined(noColors):
+      styledEcho(styleBright, summaryColor,
+                 "\n\n", passedStr,
+                 fgWhite, " tests passed.")
+    else:
+      echo "\n\n$1 tests passed.".format(passedStr)
+  else:
+    when not defined(noColors):
+      styledEcho(styleBright, fgYellow, "\n[Summary]")
+
+      styledEcho(styleBright, summaryColor,
+                  "\n  ", passedStr,
+                  fgWhite, " tests passed.")
+    else:
+      echo "\n[Summary]"
+      echo "\n  $1 tests passed.".format(passedStr)
+
 

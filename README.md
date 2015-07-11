@@ -29,6 +29,18 @@ Install with nimble!
 nimble install einheit
 ```
 
+### Running
+
+```bash
+nim c -r testing_script.nim
+
+# Or no colors
+nim c -r -d:noColors testing_script.nim
+
+# No colors, quiet output
+nim c -r -d:quiet -d:noColors testing_script.nim
+```
+
 ### Usage
 
 ```nim

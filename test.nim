@@ -129,7 +129,7 @@ testSuite MoreInheritance of TestInherit:
       k = TestObj(t: 30)
 
     self.check(t != r)
-    self.check(d != k)
+    self.check(d == k)
 
     self.check(self.doStuff(a, s) == "5stuff" and self.doStuff(a, self.doStuff(a, self.doStuff(y, s))) == "something?")
 
