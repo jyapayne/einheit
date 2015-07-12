@@ -19,6 +19,8 @@ import typetraits
 when not defined(ECMAScript):
   import terminal
 
+# ----------------- Helper Procs and Macros -----------------------------------
+
 proc `$`*[T](ar: openarray[T]): string=
     ## Converts an array into a string
     result = "["
@@ -27,14 +29,38 @@ proc `$`*[T](ar: openarray[T]): string=
     for i in 1..ar.len()-1:
         result &= ", " & $ar[i]
     result &= "]"
-    return result
 
 proc `$`*[T](some:typedesc[T]): string = name(T)
 
-proc `$`*(s: ref object): string=
+proc `$`*(s: ref object): string =
   result = ($type(s)).replace(":ObjectType", "") & $s[]
 
-proc `==`*[T](ar: openarray[T], ar2: openarray[T]): bool=
+proc objToStr*[T: object](obj: T): string =
+  result = $type(obj) & system.`$`(obj)
+
+proc objToStr*[T: tuple](obj: T): string =
+  result = "tuple " & $type(obj) & system.`$`(obj)
+
+macro toString*(obj: typed): untyped =
+  ## this macro is to work around not being
+  ## able to override system.`$`
+  ##
+  ## Basically, I want to use my proc to print
+  ## objects and tuples, but the regular $ for
+  ## everything else
+  let kind = obj.getType().typeKind
+  case kind:
+    of ntyTuple, ntyObject:
+      template toStrAst(obj): string=
+        einheit.objToStr(obj)
+      result = getAst(toStrAst(obj))
+    else:
+      template toStrAst(obj): string=
+        $(obj)
+      result = getAst(toStrAst(obj))
+
+proc `==`*[T](ar: openarray[T], ar2: openarray[T]): bool =
+  ## helper proc to compare arrays
   if len(ar) != len(ar2):
     return false
   for i in countup(0, ar.len()):
@@ -42,6 +68,7 @@ proc `==`*[T](ar: openarray[T], ar2: openarray[T]): bool=
       return false
   return true
 
+# ----------------------- Test Suite Types ------------------------------------
 type
   TestSuite = ref object of RootObj
     ## The base TestSuite
@@ -68,7 +95,7 @@ method setup*(suite: TestSuite)=
   discard
 
 method tearDown*(suite: TestSuite)=
-  ## Base method for setup code
+  ## Base method for tearDown code
   discard
 
 method runTests*(suite: TestSuite)=
@@ -99,7 +126,7 @@ template returnException(name, testName, snip, vals, pos, posRel)=
     exc.checkFuncName = name
     raise exc
 
-# ------------------------ Templates for checkion ----------------------------
+# ------------------------ Templates for checking ----------------------------
 
 template checkRaises*(self: TestSuite, error: Exception,
                        code: untyped): untyped {.immediate.}=
@@ -133,44 +160,57 @@ template checkRaises*(self: TestSuite, error: Exception,
     returnException("checkRaises", testName, snip, vals, pos, posRel)
 
 template recursive(node, action): expr {.dirty.} =
+  ## recursively iterate over AST nodes and perform an
+  ## action on them
   proc helper(child: NimNode): NimNode {.gensym.} =
     action
     result = child.copy()
     for c in child.children:
       if child.kind == nnkCall and c.kind == nnkDotExpr:
+        # ignore dot expressions that are also calls
         continue
       result.add helper(c)
   discard helper(node)
 
 template strRep(n: NimNode): untyped=
-  $(n)
+  toString(n)
 
 template tableEntry(n: NimNode): untyped=
   newNimNode(nnkExprColonExpr).add(n.toStrLit(), getAst(strRep(n)))
 
 macro getSyms(code:untyped): untyped=
+  ## This macro gets all symbols and values of an expression
+  ## into a table 
+  ##
+  ## Table[string, string] -> symbolName, value
+  ##
   var
     tableCall = newNimNode(nnkCall).add(ident("toTable"))
     tableConstr = newNimNode(nnkTableConstr)
 
   recursive(code):
     let ch1 = child
-    if ch1.kind == nnkInfix:
-      if child[1].kind == nnkIdent:
-        tableConstr.add(tableEntry(child[1]))
-      if child[2].kind == nnkIdent:
-        tableConstr.add(tableEntry(child[2]))
-    elif ch1.kind == nnkExprColonExpr:
-      if child[0].kind == nnkIdent:
-        tableConstr.add(tableEntry(child[0]))
-      if child[1].kind == nnkIdent:
-        tableConstr.add(tableEntry(child[1]))
-    elif ch1.kind == nnkCall or ch1.kind == nnkCommand:
-      tableConstr.add(tableEntry(ch1))
-      for i in 1..<ch1.len():
-        tableConstr.add(tableEntry(ch1[i]))
-    elif ch1.kind == nnkDotExpr:
-      tableConstr.add(tableEntry(ch1))
+    case ch1.kind:
+      of nnkInfix:
+        if child[1].kind == nnkIdent:
+          tableConstr.add(tableEntry(child[1]))
+        if child[2].kind == nnkIdent:
+          tableConstr.add(tableEntry(child[2]))
+      of nnkExprColonExpr:
+        if child[0].kind == nnkIdent:
+          tableConstr.add(tableEntry(child[0]))
+        if child[1].kind == nnkIdent:
+          tableConstr.add(tableEntry(child[1]))
+      of nnkCall, nnkCommand:
+        tableConstr.add(tableEntry(ch1))
+        if ch1.len() > 0 and ch1[0].kind == nnkDotExpr:
+          tableConstr.add(tableEntry(ch1[0][0]))
+        for i in 1..<ch1.len():
+          tableConstr.add(tableEntry(ch1[i]))
+      of nnkDotExpr:
+        tableConstr.add(tableEntry(ch1))
+      else:
+        discard
   if tableConstr.len() != 0:
     tableCall.add(tableConstr)
     result = tableCall
@@ -178,7 +218,6 @@ macro getSyms(code:untyped): untyped=
     template emptyTable()=
       initTable[string, string]()
     result = getAst(emptyTable())
-
 
 template check*(self: TestSuite, code: untyped){.immediate.}=
   ## Assertions for tests
@@ -444,6 +483,66 @@ macro testSuite*(head: untyped, body: untyped): untyped =
                                               baseTearMethodName))
     body.add(teardownBaseAst[0])
 
+  template setTestName(self, procName)=
+    self.currentTestName = procName
+
+  template tryBlock(self, testCall)=
+    self.numTests += 1
+    try:
+      testCall
+      when defined(quiet):
+        when defined(noColors):
+          stdout.write(".")
+        else:
+          setForegroundColor(fgGreen)
+          writeStyled(".", {styleBright})
+          setForegroundColor(fgWhite)
+      else:
+        when not defined(noColors):
+          styledEcho(styleBright, fgGreen, "[OK]",
+                     fgWhite, "     ", self.currentTestName)
+        else:
+          echo "[OK]     $1".format(self.currentTestName)
+
+      self.testsPassed += 1
+    except TestAssertError:
+      let e = (ref TestAssertError)(getCurrentException())
+
+      when defined(quiet):
+        when defined(noColors):
+          stdout.write("F")
+        else:
+          setForegroundColor(fgRed)
+          writeStyled("F", {styleBright})
+          setForegroundColor(fgWhite)
+      else:
+        when not defined(noColors):
+          styledEcho(styleBright,
+                     fgRed, "[Failed]",
+                     fgWhite, " ", self.currentTestName)
+        else:
+          echo "[Failed] $1".format(self.currentTestName)
+
+        let
+          name = e.checkFuncName
+          snip = e.codeSnip
+          line = e.lineNumber
+          filename = e.fileName
+          vals = e.valTable
+
+        when not defined(noColors):
+          styledEcho(styleDim, fgWhite, "  Condition: $2($1)\n".format(snip, name), "  Where:")
+          for k, v in vals.pairs:
+            styledEcho(styleDim, fgCyan, "    ", k,
+                       fgWhite, " -> ",
+                       fgGreen, v)
+          styledEcho(styleDim, fgWhite, "  Location: $1; line $2\n".format(filename, line))
+        else:
+          echo "  Condition: $2($1)".format(snip, name)
+          echo "  Where:"
+          for k, v in vals.pairs:
+            echo "    ", k, " -> ", v
+          echo "  Location: $1; line $2\n".format(filename, line)
 
   # Iterate over the statements, adding `self: T`
   # to the parameters of functions
@@ -455,7 +554,7 @@ macro testSuite*(head: untyped, body: untyped): untyped =
         n.params.insert(1, newIdentDefs(ident(objReference), typeName))
 
         # Copy the proc or method for inheritance
-        # ie: procName_ClassName()
+        # ie: procNameClassName()
         let n2 = copyNimTree(node)
         n2.params.insert(1, newIdentDefs(ident(objReference), typeName))
 
@@ -474,68 +573,6 @@ macro testSuite*(head: untyped, body: untyped): untyped =
         elif procName.startswith("test"):
           let procCall = newDotExpr(ident(objReference),
                                      ident(procName & typeName))
-
-          template setTestName(self, procName)=
-            self.currentTestName = procName
-
-          template tryBlock(self, testCall)=
-            self.numTests += 1
-            try:
-              testCall
-              when defined(quiet):
-                when defined(noColors):
-                  stdout.write(".")
-                else:
-                  setForegroundColor(fgGreen)
-                  writeStyled(".", {styleBright})
-                  setForegroundColor(fgWhite)
-              else:
-                when not defined(noColors):
-                  styledEcho(styleBright, fgGreen, "[OK]",
-                             fgWhite, "     ", self.currentTestName)
-                else:
-                  echo "[OK]     $1".format(self.currentTestName)
-
-              self.testsPassed += 1
-            except TestAssertError:
-              let e = (ref TestAssertError)(getCurrentException())
-
-              when defined(quiet):
-                when defined(noColors):
-                  stdout.write("F")
-                else:
-                  setForegroundColor(fgRed)
-                  writeStyled("F", {styleBright})
-                  setForegroundColor(fgWhite)
-              else:
-                when not defined(noColors):
-                  styledEcho(styleBright,
-                             fgRed, "[Failed]",
-                             fgWhite, " ", self.currentTestName)
-                else:
-                  echo "[Failed] $1".format(self.currentTestName)
-
-                let
-                  name = e.checkFuncName
-                  snip = e.codeSnip
-                  line = e.lineNumber
-                  filename = e.fileName
-                  vals = e.valTable
-
-                when not defined(noColors):
-                  styledEcho(styleDim, fgWhite, "  Condition: $2($1)\n".format(snip, name), "  Where:")
-                  for k, v in vals.pairs:
-                    styledEcho(styleDim, fgCyan, "    ", k,
-                               fgWhite, " -> ",
-                               fgGreen, v)
-                  styledEcho(styleDim, fgWhite, "  Location: $1; line $2\n".format(filename, line))
-                else:
-                  echo "  Condition: $2($1)".format(snip, name)
-                  echo "  Where:"
-                  for k, v in vals.pairs:
-                    echo "    ", k, " -> ", v
-                  echo "  Location: $1; line $2\n".format(filename, line)
-
 
           runTests[0][6].add(getAst(setTestName(ident(objReference), procName)))
           runTests[0][6].add(getAst(tryBlock(ident(objReference), procCall)))
@@ -632,65 +669,50 @@ macro testSuite*(head: untyped, body: untyped): untyped =
   result.add(getAst(addTestSuite(typeName)))
 
 
-proc runTests*()=
-  ## The method that runs the tests. Invoke
-  ## after setting up all of the tests and 
-  ## usually inside a "when isMainModule" block
+proc printRunning(suite: TestSuite)=
   var
-    totalTests = 0
-    totalTestsPassed = 0
+    numTicks = 80 - 12 - len(suite.name)
+    ticks = ""
 
-  when defined(quiet):
-    echo ""
+  for i in 0..<numTicks:
+    ticks &= "-"
 
-  for suite in testSuites:
-    suite.setup()
+  when not defined(quiet):
+    when not defined(noColors):
+      styledEcho(styleBright,
+                  fgYellow, "\n[Running]",
+                  fgWhite, " $1 ".format(suite.name),
+                  fgYellow, " ", ticks, "\n")
+    else:
+      echo "\n[Running] $1  $2\n".format(suite.name, ticks)
 
-    var
-      numTicks = 80 - 12 - len(suite.name)
-      ticks = ""
 
-    for i in 0..<numTicks:
-      ticks &= "-"
+proc printPassedTests(suite: TestSuite)=
+  # Output red if tests didn't pass, green otherwise
+  var color = fgGreen
 
-    when not defined(quiet):
-      when not defined(noColors):
-        styledEcho(styleBright,
-                    fgYellow, "\n[Running]",
-                    fgWhite, " $1 ".format(suite.name),
-                    fgYellow, " ", ticks, "\n")
-      else:
-        echo "\n[Running] $1  $2\n".format(suite.name, ticks)
+  if suite.testsPassed != suite.numTests:
+    color = fgRed
 
-    suite.runTests()
-    suite.tearDown()
+  var passedStr = "[" & $suite.testsPassed & "/" & $suite.numTests & "]"
 
-    totalTests += suite.numTests
-    totalTestsPassed += suite.testsPassed
-
-    # Output red if tests didn't pass, green otherwise
-    var color = fgGreen
-
-    if suite.testsPassed != suite.numTests:
-      color = fgRed
-
-    var passedStr = "[" & $suite.testsPassed & "/" & $suite.numTests & "]"
-
+  var
     ticks = " "
     numTicks = 80 - len(passedStr) - 20 - len(suite.name)
 
-    for i in 0..<numTicks:
-      ticks &= "-"
+  for i in 0..<numTicks:
+    ticks &= "-"
 
-    when not defined(quiet):
-      when not defined(noColors):
-        styledEcho(styleBright, color,
-                    "\n", passedStr,
-                    fgWhite, " tests passed for ", suite.name, ".",
-                    fgYellow, ticks, "\n")
-      else:
-        echo "\n$1 tests passed for $2.$3\n".format(passedStr, suite.name, ticks)
+  when not defined(quiet):
+    when not defined(noColors):
+      styledEcho(styleBright, color,
+                  "\n", passedStr,
+                  fgWhite, " tests passed for ", suite.name, ".",
+                  fgYellow, ticks, "\n")
+    else:
+      echo "\n$1 tests passed for $2.$3\n".format(passedStr, suite.name, ticks)
 
+proc printSummary(totalTestsPassed: int, totalTests: int)=
   var summaryColor = fgGreen
 
   if totalTestsPassed != totalTests:
@@ -716,4 +738,29 @@ proc runTests*()=
       echo "\n[Summary]"
       echo "\n  $1 tests passed.".format(passedStr)
 
+proc runTests*()=
+  ## The method that runs the tests. Invoke
+  ## after setting up all of the tests and 
+  ## usually inside a "when isMainModule" block
+  var
+    totalTests = 0
+    totalTestsPassed = 0
 
+  when defined(quiet):
+    echo ""
+
+  for suite in testSuites:
+    suite.setup()
+
+    suite.printRunning()
+
+    suite.runTests()
+
+    suite.tearDown()
+
+    suite.printPassedTests()
+
+    totalTests += suite.numTests
+    totalTestsPassed += suite.testsPassed
+
+  printSummary(totalTestsPassed, totalTests)

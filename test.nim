@@ -49,7 +49,7 @@ testSuite UnitTestsNew:
     self.check("Stuff" == "Stuff")
 
   proc returnTrue(): bool=
-    return false
+    result = false
 
   method testMore()=
     var more = 23
@@ -108,28 +108,63 @@ testSuite MoreInheritance of TestInherit:
   proc doStuff(arg: int, arg2: string): string=
     result = $arg & arg2
 
-  method testComplex()=
-
+  method testRefObject()=
     type
       TestObj = ref object
         t: int
-      Person = tuple[name: string, age: int]
+
+    var
+      d = TestObj(t: 3)
+      k = TestObj(t: 30)
 
     proc `==`(d: TestObj, d2: TestObj): bool=
-      return d.t == d2.t
+      result = d.t == d2.t
 
+    self.check(d == k)
+
+  method testObject()=
+    type
+      TestObj = object
+        t: int
+
+    var
+      d = TestObj(t: 3)
+      k = TestObj(t: 30)
+
+    proc `==`(d: TestObj, d2: TestObj): bool=
+      result = d.t == d2.t
+
+    self.check(d != k)
+    self.check(d == k)
+
+  method testComplexObject()=
+    type
+      Obj1 = object
+        e: string
+      Obj2 = object
+        d: Obj1
+    var x = Obj2(d:Obj1(e: "Hey"))
+    var p = 4
+    proc isObj(obj: Obj2, q: int): bool =
+      result = false
+    self.check(x.isObj(p))
+
+  method testTuple()=
+    type
+      Person = tuple[name: string, age: int]
+
+    var
+      t: Person = (name: "Peter", age: 30)
+      r: Person = (name: "P", age: 3)
+
+    self.check(t != r)
+    self.check(t == r)
+
+  method testComplex()=
     var
       a = 5
       s = "stuff"
       y = 45
-
-      t: Person = (name: "Peter", age: 30)
-      r: Person = (name: "P", age: 3)
-      d = TestObj(t: 3)
-      k = TestObj(t: 30)
-
-    self.check(t != r)
-    self.check(d == k)
 
     self.check(self.doStuff(a, s) == "5stuff" and self.doStuff(a, self.doStuff(a, self.doStuff(y, s))) == "something?")
 
