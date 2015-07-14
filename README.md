@@ -133,6 +133,7 @@ is this:
   Condition: check(self.returnTrue())
   Where:
     self.returnTrue() -> false
+    self -> ref UnitTestsNew(testObj: 90, name: UnitTestsNew, currentTestName: testMoreMore, testsPassed: 2, numTests: 4)
   Location: test.nim; line 59
 
 
@@ -153,12 +154,13 @@ is this:
   Condition: check(self.returnTrue())
   Where:
     self.returnTrue() -> false
+    self -> ref UnitTestsNew(testObj: 90, name: TestInherit, currentTestName: testMoreMore, testsPassed: 2, numTests: 4)
   Location: test.nim; line 59
 
 [Failed] testRaises
   Condition: checkRaises(OSError, self.raisesOs())
   Where:
-    self.raisesOs() -> Exception
+    self.raisesOs() -> SystemError
   Location: test.nim; line 72
 
 
@@ -184,30 +186,66 @@ is this:
   Condition: check(self.returnTrue())
   Where:
     self.returnTrue() -> false
+    self -> ref UnitTestsNew(testObj: 12345, name: MoreInheritance, currentTestName: testMoreMore, testsPassed: 1, numTests: 4)
   Location: test.nim; line 59
 
 [Failed] testRaises
   Condition: checkRaises(OSError, self.raisesOs())
   Where:
-    self.raisesOs() -> Exception
+    self.raisesOs() -> SystemError
   Location: test.nim; line 72
 
 [OK]     testTestObj
 [OK]     testNewObj
+[Failed] testRefObject
+  Condition: check(d == k)
+  Where:
+    k -> ref TestObj(t: 30)
+    d -> ref TestObj(t: 3)
+  Location: test.nim; line 123
+
+[Failed] testObject
+  Condition: check(d == k)
+  Where:
+    k -> TestObj(t: 30)
+    d -> TestObj(t: 3)
+  Location: test.nim; line 138
+
+[Failed] testComplexObject
+  Condition: check(x.isObj(p))
+  Where:
+    x.isObj(p) -> false
+    p -> 4
+    x -> Obj2(d: Obj1(e: Hey))
+  Location: test.nim; line 150
+
+[Failed] testTuple
+  Condition: check(t == r)
+  Where:
+    r -> tuple Person(name: P, age: 3)
+    t -> tuple Person(name: Peter, age: 30)
+  Location: test.nim; line 161
+
 [Failed] testComplex
-  Condition: check(self.doStuff(a, s) == "5stuff" and  self.doStuff(a, self.doStuff(a, self.doStuff(y, s))) == "something?")
+  Condition: check(self.doStuff(a, s) == "5stuff" and self.doStuff(a, self.doStuff(a, self.doStuff(y, s))) == "something?")
   Where:
     self.doStuff(a, s) -> 5stuff
     a -> 5
+    self -> ref MoreInheritance(testObj: 12345, name: MoreInheritance, currentTestName: testComplex, testsPassed: 3, numTests: 12)
     self.doStuff(a, self.doStuff(a, self.doStuff(y, s))) -> 5545stuff
     y -> 45
     s -> stuff
     self.doStuff(y, s) -> 45stuff
     self.doStuff(a, self.doStuff(y, s)) -> 545stuff
-  Location: test.nim; line 134
+  Location: test.nim; line 169
 
 
-[3/8] tests passed for MoreInheritance. ----------------------------------------
+[3/12] tests passed for MoreInheritance. ---------------------------------------
+
+
+[Summary]
+
+  [8/24] tests passed.
 ```
 
 Notice that on failure, the test runner gives some useful information about the test in question. This is useful for determining why the test failed.

@@ -35,11 +35,34 @@ proc `$`*[T](some:typedesc[T]): string = name(T)
 proc `$`*(s: ref object): string =
   result = ($type(s)).replace(":ObjectType", "") & $s[]
 
-proc objToStr*[T: object](obj: T): string =
-  result = $type(obj) & system.`$`(obj)
+template tupleObjToStr(obj): string {.dirty.} =
+  var res = $type(obj)
+  template helper(n) {.gensym.} =
+    res.add("(")
+    var firstElement = true
+    for name, value in n.fieldPairs():
+      if not firstElement:
+        res.add(", ")
+      res.add(name)
+      res.add(": ")
+      when (value is object or value is tuple):
+        when (value is tuple):
+          res.add("tuple " & $type(value))
+        else:
+          res.add($type(value))
+        helper(value)
+      else:
+        res.add($value)
+      firstElement = false
+    res.add(")")
+  helper(obj)
+  res
+
+proc objToStr*[T: object](obj: var T): string =
+  tupleObjToStr(obj)
 
 proc objToStr*[T: tuple](obj: T): string =
-  result = "tuple " & $type(obj) & system.`$`(obj)
+  result = "tuple " & tupleObjToStr(obj)
 
 macro toString*(obj: typed): untyped =
   ## this macro is to work around not being
