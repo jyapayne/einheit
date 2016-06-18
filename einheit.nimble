@@ -1,6 +1,6 @@
 [Package]
 name          = "einheit"
-version       = "0.1.5"
+version       = "0.1.6"
 author        = "Joey Payne"
 description   = "Tool for providing unit tests. Einheit is German for Unit."
 license       = "MIT"
