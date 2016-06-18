@@ -1,7 +1,5 @@
 import einheit
 
-
-
 testSuite UnitTests:
   var
     testObj: int

@@ -18,8 +18,7 @@ import tables
 import typetraits
 when not defined(ECMAScript):
   import terminal
-
-
+import utils
 
 # ----------------- Helper Procs and Macros -----------------------------------
 
@@ -101,6 +100,7 @@ type
     currentTestName: string
     testsPassed: int
     numTests: int
+    lastTestFailed: bool
 
   TestAssertError = object of Exception
     ## check and other check* statements will raise
@@ -134,11 +134,11 @@ template returnException(name, testName, snip, vals, pos, posRel) =
     var
       filename = posRel.filename
       line = pos.line
-    var message = "\n"
-    message &= "  Condition: $2($1)\n".format(snip, name)
-    message &= "  Where:\n"
+    var message = "\l"
+    message &= "  Condition: $2($1)\l".format(snip, name)
+    message &= "  Where:\l"
     for k, v in vals.pairs:
-      message &= "    $1 -> $2\n".format(k, v)
+      message &= "    $1 -> $2\l".format(k, v)
 
     message &= "  Location: $1; line $2".format(filename, line)
 
@@ -523,13 +523,18 @@ macro testSuite*(head: untyped, body: untyped): untyped =
           writeStyled(".", {styleBright})
           setForegroundColor(fgWhite)
       else:
+        var okStr = "[OK]"
+        if self.lastTestFailed:
+          okStr = "\l" & okStr
+
         when not defined(noColors):
-          styledEcho(styleBright, fgGreen, "[OK]",
+          styledEcho(styleBright, fgGreen, okStr,
                      fgWhite, "     ", self.currentTestName)
         else:
-          echo "[OK]     $1".format(self.currentTestName)
+          echo "$1     $2".format(okStr, self.currentTestName)
 
       self.testsPassed += 1
+      self.lastTestFailed = false
     except TestAssertError:
       let e = (ref TestAssertError)(getCurrentException())
 
@@ -543,10 +548,10 @@ macro testSuite*(head: untyped, body: untyped): untyped =
       else:
         when not defined(noColors):
           styledEcho(styleBright,
-                     fgRed, "[Failed]",
+                     fgRed, "\l[Failed]",
                      fgWhite, " ", self.currentTestName)
         else:
-          echo "[Failed] $1".format(self.currentTestName)
+          echo "\l[Failed] $1".format(self.currentTestName)
 
         let
           name = e.checkFuncName
@@ -556,18 +561,19 @@ macro testSuite*(head: untyped, body: untyped): untyped =
           vals = e.valTable
 
         when not defined(noColors):
-          styledEcho(styleDim, fgWhite, "  Condition: $2($1)\n".format(snip, name), "  Where:")
+          styledEcho(styleDim, fgWhite, "  Condition: $2($1)\l".format(snip, name), "  Where:")
           for k, v in vals.pairs:
             styledEcho(styleDim, fgCyan, "    ", k,
                        fgWhite, " -> ",
                        fgGreen, v)
-          styledEcho(styleDim, fgWhite, "  Location: $1; line $2\n".format(filename, line))
+          styledEcho(styleDim, fgWhite, "  Location: $1; line $2".format(filename, line))
         else:
           echo "  Condition: $2($1)".format(snip, name)
           echo "  Where:"
           for k, v in vals.pairs:
             echo "    ", k, " -> ", v
-          echo "  Location: $1; line $2\n".format(filename, line)
+          echo "  Location: $1; line $2".format(filename, line)
+      self.lastTestFailed = true
 
   # Iterate over the statements, adding `self: T`
   # to the parameters of functions
@@ -593,6 +599,9 @@ macro testSuite*(head: untyped, body: untyped): untyped =
           let dotName = newDotExpr(ident(objReference), ident("name"))
           let setName = newAssignment(dotName, newLit(typeName))
           n2.body.add(setName)
+          let dotRan = newDotExpr(ident(objReference), ident("lastTestFailed"))
+          let setRan = newAssignment(dotRan, ident("true"))
+          n2.body.add(setRan)
         elif procName.toLower() == "teardown":
           discard
         elif procName.startswith("test"):
@@ -695,8 +704,9 @@ macro testSuite*(head: untyped, body: untyped): untyped =
 
 
 proc printRunning(suite: TestSuite) =
+  let termSize = getTermSize()
   var
-    numTicks = 80 - 12 - len(suite.name)
+    numTicks = termSize[1]
     ticks = ""
 
   for i in 0..<numTicks:
@@ -705,11 +715,12 @@ proc printRunning(suite: TestSuite) =
   when not defined(quiet):
     when not defined(noColors):
       styledEcho(styleBright,
-                  fgYellow, "\n[Running]",
-                  fgWhite, " $1 ".format(suite.name),
-                  fgYellow, " ", ticks, "\n")
+                  fgYellow, "\l"&ticks,
+                  fgYellow, "\l\l[Running]",
+                  fgWhite, " $1 ".format(suite.name))
     else:
-      echo "\n[Running] $1  $2\n".format(suite.name, ticks)
+      echo "\l$1\l".format(ticks)
+      echo "[Running] $1".format(suite.name)
 
 
 proc printPassedTests(suite: TestSuite) =
@@ -721,21 +732,13 @@ proc printPassedTests(suite: TestSuite) =
 
   var passedStr = "[" & $suite.testsPassed & "/" & $suite.numTests & "]"
 
-  var
-    ticks = " "
-    numTicks = 80 - len(passedStr) - 20 - len(suite.name)
-
-  for i in 0..<numTicks:
-    ticks &= "-"
-
   when not defined(quiet):
     when not defined(noColors):
       styledEcho(styleBright, color,
-                  "\n", passedStr,
-                  fgWhite, " tests passed for ", suite.name, ".",
-                  fgYellow, ticks, "\n")
+                  "\l", passedStr,
+                  fgWhite, " tests passed for ", suite.name, ".")
     else:
-      echo "\n$1 tests passed for $2.$3\n".format(passedStr, suite.name, ticks)
+      echo "\l$1 tests passed for $2.".format(passedStr, suite.name)
 
 proc printSummary(totalTestsPassed: int, totalTests: int) =
   var summaryColor = fgGreen
@@ -748,20 +751,33 @@ proc printSummary(totalTestsPassed: int, totalTests: int) =
   when defined(quiet):
     when not defined(noColors):
       styledEcho(styleBright, summaryColor,
-                 "\n\n", passedStr,
+                 "\l\l", passedStr,
                  fgWhite, " tests passed.")
     else:
-      echo "\n\n$1 tests passed.".format(passedStr)
+      echo "\l\l$1 tests passed.".format(passedStr)
   else:
+
+    let termSize = getTermSize()
+
+    var
+      ticks = ""
+      numTicks = termSize[1]
+
+    for i in 0..<numTicks:
+      ticks &= "-"
+
     when not defined(noColors):
-      styledEcho(styleBright, fgYellow, "\n[Summary]")
+      styledEcho(styleBright,
+                 fgYellow, "\l$1\l".format(ticks),
+                 fgYellow, "\l[Summary]")
 
       styledEcho(styleBright, summaryColor,
-                  "\n  ", passedStr,
+                  "\l  ", passedStr,
                   fgWhite, " tests passed.")
     else:
-      echo "\n[Summary]"
-      echo "\n  $1 tests passed.".format(passedStr)
+      echo "\l$1\l".format(ticks)
+      echo "\l[Summary]"
+      echo "\l  $1 tests passed.".format(passedStr)
 
 proc runTests*() =
   ## The method that runs the tests. Invoke
