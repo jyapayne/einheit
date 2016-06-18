@@ -93,7 +93,7 @@ proc `==`*[T](ar: openarray[T], ar2: openarray[T]): bool =
 
 # ----------------------- Test Suite Types ------------------------------------
 type
-  TestSuite = ref object of RootObj
+  TestSuite* = ref object of RootObj
     ## The base TestSuite
     name: string
     currentTestName: string
