@@ -8,7 +8,7 @@
 ## .. code:: nim
 ##
 ##  testSuite UnitTests:
-##    proc thisIsATest()=
+##    proc thisIsATest() =
 ##      self.check(1 == 1)
 ##      self.checkRaises(OSError, newException(OSError, "OS is exploding!"))
 ##
@@ -19,9 +19,11 @@ import typetraits
 when not defined(ECMAScript):
   import terminal
 
+
+
 # ----------------- Helper Procs and Macros -----------------------------------
 
-proc `$`*[T](ar: openarray[T]): string=
+proc `$`*[T](ar: openarray[T]): string =
     ## Converts an array into a string
     result = "["
     if ar.len() > 0:
@@ -74,11 +76,11 @@ macro toString*(obj: typed): untyped =
   let kind = obj.getType().typeKind
   case kind:
     of ntyTuple, ntyObject:
-      template toStrAst(obj): string=
+      template toStrAst(obj): string =
         einheit.objToStr(obj)
       result = getAst(toStrAst(obj))
     else:
-      template toStrAst(obj): string=
+      template toStrAst(obj): string =
         $(obj)
       result = getAst(toStrAst(obj))
 
@@ -113,21 +115,21 @@ type
 
 # -- Methods for the TestSuite base --
 
-method setup*(suite: TestSuite)=
+method setup*(suite: TestSuite) =
   ## Base method for setup code
   discard
 
-method tearDown*(suite: TestSuite)=
+method tearDown*(suite: TestSuite) =
   ## Base method for tearDown code
   discard
 
-method runTests*(suite: TestSuite)=
+method runTests*(suite: TestSuite) =
   ## Base method for running tests
   discard
 
 # ------------------------------------
 
-template returnException(name, testName, snip, vals, pos, posRel)=
+template returnException(name, testName, snip, vals, pos, posRel) =
     ## private template for raising an exception
     var
       filename = posRel.filename
@@ -195,13 +197,13 @@ template recursive(node, action): expr {.dirty.} =
       result.add helper(c)
   discard helper(node)
 
-template strRep(n: NimNode): untyped=
+template strRep(n: NimNode): untyped =
   toString(n)
 
-template tableEntry(n: NimNode): untyped=
+template tableEntry(n: NimNode): untyped =
   newNimNode(nnkExprColonExpr).add(n.toStrLit(), getAst(strRep(n)))
 
-macro getSyms(code:untyped): untyped=
+macro getSyms(code:untyped): untyped =
   ## This macro gets all symbols and values of an expression
   ## into a table 
   ##
@@ -238,7 +240,7 @@ macro getSyms(code:untyped): untyped=
     tableCall.add(tableConstr)
     result = tableCall
   else:
-    template emptyTable()=
+    template emptyTable() =
       initTable[string, string]()
     result = getAst(emptyTable())
 
@@ -296,11 +298,11 @@ macro testSuite*(head: untyped, body: untyped): untyped =
   ##    var
   ##      suiteVar: string
   ##
-  ##    method setup()=
+  ##    method setup() =
   ##      ## do setup code here
   ##      self.suiteVar = "Testing"
   ##
-  ##    method testAddingString()=
+  ##    method testAddingString() =
   ##      ## adds a string to the suiteVar
   ##      self.suiteVar &= " 123"
   ##      self.check(self.suiteVar == "Testing 123")
@@ -315,7 +317,7 @@ macro testSuite*(head: untyped, body: untyped): untyped =
   let objReference = "self"
   var exportClass: bool = false
 
-  template importRequiredLibs()=
+  template importRequiredLibs() =
     import strutils
     import tables
     import typetraits
@@ -410,7 +412,7 @@ macro testSuite*(head: untyped, body: untyped): untyped =
   #          return `baseName`(self)
   #   result.add(super)
 
-  template setNodeName(n2, procName, typeName)=
+  template setNodeName(n2, procName, typeName) =
     if n2.name.kind == nnkIdent:
       procName = $(n2.name.toStrLit())
       n2.name = ident(procName & typeName)
@@ -427,12 +429,12 @@ macro testSuite*(head: untyped, body: untyped): untyped =
     result.add(n2)
 
 
-  template runTestsProc(self, typeName, baseMethod, typeMethod)=
-    method typeMethod(self: typeName)=
+  template runTestsProc(self, typeName, baseMethod, typeMethod) =
+    method typeMethod(self: typeName) =
       when compiles(self.baseMethod()):
         self.baseMethod()
     
-    method runTests(self: typeName)=
+    method runTests(self: typeName) =
       self.typeMethod()
 
   var baseMethodName = ident("runTests" & $baseName.toStrLit())
@@ -472,12 +474,12 @@ macro testSuite*(head: untyped, body: untyped): untyped =
         discard
 
   if not foundSetup:
-    template setupProc(self, typeName, setupProc)=
+    template setupProc(self, typeName, setupProc) =
       method setup(self: typeName)
       method setupProc(self: typeName)
 
-    template setupDecl(self, baseMethod)=
-      method setup()=
+    template setupDecl(self, baseMethod) =
+      method setup() =
         when compiles(self.baseMethod()):
           self.baseMethod()
 
@@ -488,12 +490,12 @@ macro testSuite*(head: untyped, body: untyped): untyped =
     body.add(setupBaseAst[0])
 
   if not foundTeardown:
-    template teardownProc(self, typeName, tdProc)=
+    template teardownProc(self, typeName, tdProc) =
       method tearDown(self: typeName)
       method tdProc(self: typeName)
 
-    template teardownDecl(self, baseMethod)=
-      method tearDown()=
+    template teardownDecl(self, baseMethod) =
+      method tearDown() =
         when compiles(self.baseMethod()):
           self.baseMethod()
 
@@ -506,10 +508,10 @@ macro testSuite*(head: untyped, body: untyped): untyped =
                                               baseTearMethodName))
     body.add(teardownBaseAst[0])
 
-  template setTestName(self, procName)=
+  template setTestName(self, procName) =
     self.currentTestName = procName
 
-  template tryBlock(self, testCall)=
+  template tryBlock(self, testCall) =
     self.numTests += 1
     try:
       testCall
@@ -645,9 +647,9 @@ macro testSuite*(head: untyped, body: untyped): untyped =
 
   var typeDecl: NimNode
 
-  template declareTypeExport(tname, bname)=
+  template declareTypeExport(tname, bname) =
     type tname* = ref object of bname
-  template declareType(tname, bname)=
+  template declareType(tname, bname) =
     type tname = ref object of bname
 
   if baseName == nil:
@@ -686,13 +688,13 @@ macro testSuite*(head: untyped, body: untyped): untyped =
   
   result.add(runTests)
 
-  template addTestSuite(typeName)=
+  template addTestSuite(typeName) =
     testSuites.add(typeName())
 
   result.add(getAst(addTestSuite(typeName)))
 
 
-proc printRunning(suite: TestSuite)=
+proc printRunning(suite: TestSuite) =
   var
     numTicks = 80 - 12 - len(suite.name)
     ticks = ""
@@ -710,7 +712,7 @@ proc printRunning(suite: TestSuite)=
       echo "\n[Running] $1  $2\n".format(suite.name, ticks)
 
 
-proc printPassedTests(suite: TestSuite)=
+proc printPassedTests(suite: TestSuite) =
   # Output red if tests didn't pass, green otherwise
   var color = fgGreen
 
@@ -735,7 +737,7 @@ proc printPassedTests(suite: TestSuite)=
     else:
       echo "\n$1 tests passed for $2.$3\n".format(passedStr, suite.name, ticks)
 
-proc printSummary(totalTestsPassed: int, totalTests: int)=
+proc printSummary(totalTestsPassed: int, totalTests: int) =
   var summaryColor = fgGreen
 
   if totalTestsPassed != totalTests:
@@ -761,7 +763,7 @@ proc printSummary(totalTestsPassed: int, totalTests: int)=
       echo "\n[Summary]"
       echo "\n  $1 tests passed.".format(passedStr)
 
-proc runTests*()=
+proc runTests*() =
   ## The method that runs the tests. Invoke
   ## after setting up all of the tests and 
   ## usually inside a "when isMainModule" block

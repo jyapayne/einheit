@@ -1,32 +1,34 @@
 import einheit
 
+
+
 testSuite UnitTests:
   var
     testObj: int
     testArray: array[4, int]
 
-  proc doThings()=
+  proc doThings() =
     # This proc won't be invoked as a test
     self.testObj = 400
     self.check(self.testObj == 400)
 
-  method setup()=
+  method setup() =
     self.testObj = 90
     for i in 0 ..< self.testArray.len():
       self.testArray[i] = i
 
-  method tearDown()=
+  method tearDown() =
     self.testObj = 0
 
-  method testForB()=
+  method testForB() =
     var b = 4
     self.doThings()
     self.check(b == 4)
 
-  method testArrayAssert()=
+  method testArrayAssert() =
     self.check(self.testArray == [0,1,2])
 
-  method testForC()=
+  method testForC() =
     var c = 0
     # supposed to fail
     self.check(c == 1)
@@ -36,37 +38,46 @@ testSuite UnitTestsNew:
   var
     testObj: int
 
-  method setup()=
+  method setup() =
     self.testObj = 90
 
-  method tearDown()=
+  method tearDown() =
     self.testObj = 0
 
-  method testTestObj()=
+  method testTestObj() =
     self.check(self.testObj == 90)
 
-  method testStuff()=
+  method testStuff() =
     self.check("Stuff" == "Stuff")
 
   proc returnTrue(): bool=
     result = false
 
-  method testMore()=
+  method testMore() =
     var more = 23
     self.check(more == 1)
 
-  method testMoreMore()=
+  method testMoreMore() =
     self.check(self.returnTrue())
+
+  method testValues() =
+    proc foo : int =
+      return 1
+
+    proc bar : int =
+      return 2
+    let (a, b) = (123, 321)
+    self.check(a == b and foo() == bar())
 
 # Inheritance!
 testSuite TestInherit of UnitTestsNew:
   ## This will call every test defined in UnitTestsNew
 
-  proc raisesOs()=
+  proc raisesOs() =
     # This proc won't be invoked as a test
     raise newException(SystemError, "Oh no! OS malfunction!")
 
-  method testRaises()=
+  method testRaises() =
 
     # Two ways of checking
     self.checkRaises OSError:
@@ -77,7 +88,7 @@ testSuite TestInherit of UnitTestsNew:
 
 testSuite MoreInheritance of TestInherit:
 
-  method setup()=
+  method setup() =
     # This must be called if overriding setup if you want
     # base class setup functionality. You can also call
     # self.setupTestInherit() to call the direct parent's
@@ -88,12 +99,12 @@ testSuite MoreInheritance of TestInherit:
     # fail. This is expected.
     self.testObj = 12345
 
-  method tearDown()=
+  method tearDown() =
     # Calling the direct parent's tearDown method
     self.tearDownTestInherit()
     self.testObj = 0
 
-  method testTestObj()=
+  method testTestObj() =
     # This method is overwritten. To call the base method,
     # simply use
     #   self.testTestObj_UnitTestsNew()
@@ -102,13 +113,13 @@ testSuite MoreInheritance of TestInherit:
     # This one will pass, the other will fail
     self.check(self.testObj == 12345)
 
-  method testNewObj()=
+  method testNewObj() =
     self.check(self.testObj == 12345)
 
-  proc doStuff(arg: int, arg2: string): string=
+  proc doStuff(arg: int, arg2: string): string =
     result = $arg & arg2
 
-  method testRefObject()=
+  method testRefObject() =
     type
       TestObj = ref object
         t: int
@@ -117,12 +128,12 @@ testSuite MoreInheritance of TestInherit:
       d = TestObj(t: 3)
       k = TestObj(t: 30)
 
-    proc `==`(d: TestObj, d2: TestObj): bool=
+    proc `==`(d: TestObj, d2: TestObj): bool =
       result = d.t == d2.t
 
     self.check(d == k)
 
-  method testObject()=
+  method testObject() =
     type
       TestObj = object
         t: int
@@ -131,13 +142,13 @@ testSuite MoreInheritance of TestInherit:
       d = TestObj(t: 3)
       k = TestObj(t: 30)
 
-    proc `==`(d: TestObj, d2: TestObj): bool=
+    proc `==`(d: TestObj, d2: TestObj): bool =
       result = d.t == d2.t
 
     self.check(d != k)
     self.check(d == k)
 
-  method testComplexObject()=
+  method testComplexObject() =
     type
       Obj1 = object
         e: string
@@ -149,7 +160,7 @@ testSuite MoreInheritance of TestInherit:
       result = false
     self.check(x.isObj(p))
 
-  method testTuple()=
+  method testTuple() =
     type
       Person = tuple[name: string, age: int]
 
@@ -160,7 +171,7 @@ testSuite MoreInheritance of TestInherit:
     self.check(t != r)
     self.check(t == r)
 
-  method testComplex()=
+  method testComplex() =
     var
       a = 5
       s = "stuff"
