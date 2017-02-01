@@ -18,7 +18,7 @@ import tables
 import typetraits
 when not defined(ECMAScript):
   import terminal
-import utils
+import einheit/utils
 
 # ----------------- Helper Procs and Macros -----------------------------------
 
