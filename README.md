@@ -65,7 +65,7 @@ testSuite SuiteName of TestSuite:
   method testAddingString()=
     ## adds a string to the suiteVar
     self.suiteVar &= " 123"
-r   self.check(self.suiteVar == "Testing 123")
+    self.check(self.suiteVar == "Testing 123")
 
   proc raisesOs()=
     # This proc won't be invoked as a test, it must begin with "test" in lowercase
