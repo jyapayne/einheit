@@ -1,11 +1,14 @@
-[Package]
-name          = "einheit"
+# Package
+
 version       = "0.1.6"
 author        = "Joey Payne"
 description   = "Tool for providing unit tests. Einheit is German for Unit."
 license       = "MIT"
 
-bin = "einheit"
+srcDir = "src"
 
-[Deps]
-Requires: "nim >= 0.11.3"
+# Deps
+requires "nim >= 0.11.3"
+
+task test, "Run tests":
+  exec "nim c -r tests/test.nim"
