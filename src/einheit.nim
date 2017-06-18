@@ -1,5 +1,5 @@
 ## :Author: Joey Payne
-## This module is an alternate implementation of 
+## This module is an alternate implementation of
 ## the unittest module in Nim. Inspired by the python
 ## unit test module.
 ##
@@ -13,7 +13,8 @@
 ##      self.checkRaises(OSError, newException(OSError, "OS is exploding!"))
 ##
 import macros
-import strutils
+import unicode
+import strutils except toLower
 import tables
 import typetraits
 when not defined(ECMAScript):
@@ -115,15 +116,15 @@ type
 
 # -- Methods for the TestSuite base --
 
-method setup*(suite: TestSuite) =
+method setup*(suite: TestSuite) {.base.} =
   ## Base method for setup code
   discard
 
-method tearDown*(suite: TestSuite) =
+method tearDown*(suite: TestSuite) {.base.} =
   ## Base method for tearDown code
   discard
 
-method runTests*(suite: TestSuite) =
+method runTests*(suite: TestSuite) {.base.} =
   ## Base method for running tests
   discard
 
@@ -153,8 +154,8 @@ template returnException(name, testName, snip, vals, pos, posRel) =
 
 # ------------------------ Templates for checking ----------------------------
 
-template checkRaises*(self: TestSuite, error: Exception,
-                       code: untyped): untyped {.immediate.}=
+template checkRaises*(self: untyped, error: untyped,
+                       code: untyped): untyped =
   ## Raises a TestAssertError when the exception "error" is
   ## not thrown in the code
   let
@@ -184,7 +185,7 @@ template checkRaises*(self: TestSuite, error: Exception,
 
     returnException("checkRaises", testName, snip, vals, pos, posRel)
 
-template recursive(node, action): expr {.dirty.} =
+template recursive(node, action): untyped {.dirty.} =
   ## recursively iterate over AST nodes and perform an
   ## action on them
   proc helper(child: NimNode): NimNode {.gensym.} =
@@ -244,7 +245,7 @@ macro getSyms(code:untyped): untyped =
       initTable[string, string]()
     result = getAst(emptyTable())
 
-template check*(self: TestSuite, code: untyped){.immediate.}=
+template check*(self: untyped, code: untyped)=
   ## Assertions for tests
   if not code:
     # These need to be here to capture the actual info
@@ -311,7 +312,7 @@ macro testSuite*(head: untyped, body: untyped): untyped =
   ##    einheit.runTests()
   ##
 
-  
+
   # object reference name inside methods.
   # ie: self, self
   let objReference = "self"
@@ -430,10 +431,10 @@ macro testSuite*(head: untyped, body: untyped): untyped =
 
 
   template runTestsProc(self, typeName, baseMethod, typeMethod) =
-    method typeMethod(self: typeName) =
+    method typeMethod(self: typeName) {.base.} =
       when compiles(self.baseMethod()):
         self.baseMethod()
-    
+
     method runTests(self: typeName) =
       self.typeMethod()
 
@@ -445,6 +446,20 @@ macro testSuite*(head: untyped, body: untyped): untyped =
   var
     foundSetup = false
     foundTeardown = false
+
+  # {.push warning[UseBase]: off.}
+  result.add(
+    newNimNode(nnkPragma).add(
+      ident("push"),
+      newNimNode(nnkExprColonExpr).add(
+        newNimNode(nnkBracketExpr).add(
+          ident("warning"),
+          ident("UseBase")
+        ),
+        ident("off")
+      )
+    )
+  )
 
   # Make forward declarations so that function order
   # does not matter, just like in real OOP!
@@ -473,10 +488,17 @@ macro testSuite*(head: untyped, body: untyped): untyped =
       else:
         discard
 
+  # {.pop.}
+  result.add(
+    newNimNode(nnkPragma).add(
+      ident("pop")
+    )
+  )
+
   if not foundSetup:
     template setupProc(self, typeName, setupProc) =
       method setup(self: typeName)
-      method setupProc(self: typeName)
+      method setupProc(self: typeName) {.base.}
 
     template setupDecl(self, baseMethod) =
       method setup() =
@@ -492,7 +514,7 @@ macro testSuite*(head: untyped, body: untyped): untyped =
   if not foundTeardown:
     template teardownProc(self, typeName, tdProc) =
       method tearDown(self: typeName)
-      method tdProc(self: typeName)
+      method tdProc(self: typeName) {.base.}
 
     template teardownDecl(self, baseMethod) =
       method tearDown() =
@@ -694,7 +716,7 @@ macro testSuite*(head: untyped, body: untyped): untyped =
 
   # insert libs needed
   result.insert(0, getAst(importRequiredLibs()))
-  
+
   result.add(runTests)
 
   template addTestSuite(typeName) =
@@ -781,7 +803,7 @@ proc printSummary(totalTestsPassed: int, totalTests: int) =
 
 proc runTests*() =
   ## The method that runs the tests. Invoke
-  ## after setting up all of the tests and 
+  ## after setting up all of the tests and
   ## usually inside a "when isMainModule" block
   var
     totalTests = 0

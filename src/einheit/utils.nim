@@ -45,9 +45,9 @@ else:
       ws_xpixel: cushort
       ws_ypixel: cushort
 
-  let
-    IOC_OUT = 0x40000000
-    IOCPARM_MASK = 0x1fff
+  # let
+    # IOC_OUT = 0x40000000
+    # IOCPARM_MASK = 0x1fff
 
   var
     TIOCGWINSZ{.importc: "TIOCGWINSZ", header: "<sys/ioctl.h>".}: uint
