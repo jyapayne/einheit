@@ -34,9 +34,6 @@ proc `$`*[T](ar: openarray[T]): string =
 
 proc `$`*[T](some:typedesc[T]): string = name(T)
 
-proc `$`*(s: ref object): string =
-  result = ($type(s)).replace(":ObjectType", "") & $s[]
-
 template tupleObjToStr(obj): string {.dirty.} =
   var res = $type(obj)
   template helper(n) {.gensym.} =
@@ -53,12 +50,17 @@ template tupleObjToStr(obj): string {.dirty.} =
         else:
           res.add($type(value))
         helper(value)
+      elif (value is string):
+        res.add("\"" & $value & "\"")
       else:
         res.add($value)
       firstElement = false
     res.add(")")
   helper(obj)
   res
+
+proc `$`*(s: ref object): string =
+  result = "ref " & tupleObjToStr(s[]).replace(":ObjectType", "")
 
 proc objToStr*[T: object](obj: var T): string =
   tupleObjToStr(obj)
@@ -78,6 +80,10 @@ macro toString*(obj: typed): untyped =
     of ntyTuple, ntyObject:
       template toStrAst(obj): string =
         einheit.objToStr(obj)
+      result = getAst(toStrAst(obj))
+    of ntyString:
+      template toStrAst(obj): string =
+        "\"" & $(obj) & "\""
       result = getAst(toStrAst(obj))
     else:
       template toStrAst(obj): string =
@@ -594,6 +600,7 @@ macro testSuite*(head: untyped, body: untyped): untyped =
           echo "  Where:"
           for k, v in vals.pairs:
             echo "    ", k, " -> ", v
+
           echo "  Location: $1; line $2".format(filename, line)
       self.lastTestFailed = true
 
