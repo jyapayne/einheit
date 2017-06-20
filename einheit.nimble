@@ -8,7 +8,7 @@ license       = "MIT"
 srcDir = "src"
 
 # Deps
-requires "nim >= 0.11.3"
+requires "nim >= 0.17.0"
 
 task test, "Run tests":
   exec "nim c -r tests/test.nim"
