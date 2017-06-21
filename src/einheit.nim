@@ -32,10 +32,10 @@ proc `$`*[T](ar: openarray[T]): string =
         result &= ", " & $ar[i]
     result &= "]"
 
-proc `$`*[T](some:typedesc[T]): string = name(T)
+proc typeToStr*[T](some:typedesc[T]): string = name(T)
 
 template tupleObjToStr(obj): string {.dirty.} =
-  var res = $type(obj)
+  var res = typeToStr(type(obj))
   template helper(n) {.gensym.} =
     res.add("(")
     var firstElement = true
@@ -46,9 +46,9 @@ template tupleObjToStr(obj): string {.dirty.} =
       res.add(": ")
       when (value is object or value is tuple):
         when (value is tuple):
-          res.add("tuple " & $type(value))
+          res.add("tuple " & typeToStr(type(value)))
         else:
-          res.add($type(value))
+          res.add(typeToStr(type(value)))
         helper(value)
       elif (value is string):
         res.add("\"" & $value & "\"")
