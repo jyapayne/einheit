@@ -17,7 +17,10 @@ import unicode
 import strutils except toLower
 import tables
 import typetraits
-when not defined(ECMAScript):
+when defined(ECMAScript):
+  const noColors = true
+else:
+  const noColors = defined(noColors)
   import terminal
 import einheit/utils
 
@@ -544,7 +547,7 @@ macro testSuite*(head: untyped, body: untyped): untyped =
     try:
       testCall
       when defined(quiet):
-        when defined(noColors):
+        when noColors:
           stdout.write(".")
         else:
           setForegroundColor(fgGreen)
@@ -555,7 +558,7 @@ macro testSuite*(head: untyped, body: untyped): untyped =
         if self.lastTestFailed:
           okStr = "\l" & okStr
 
-        when not defined(noColors):
+        when not noColors:
           styledEcho(styleBright, fgGreen, okStr,
                      fgWhite, "     ", self.currentTestName)
         else:
@@ -567,14 +570,14 @@ macro testSuite*(head: untyped, body: untyped): untyped =
       let e = (ref TestAssertError)(getCurrentException())
 
       when defined(quiet):
-        when defined(noColors):
+        when noColors:
           stdout.write("F")
         else:
           setForegroundColor(fgRed)
           writeStyled("F", {styleBright})
           setForegroundColor(fgWhite)
       else:
-        when not defined(noColors):
+        when not noColors:
           styledEcho(styleBright,
                      fgRed, "\l[Failed]",
                      fgWhite, " ", self.currentTestName)
@@ -588,7 +591,7 @@ macro testSuite*(head: untyped, body: untyped): untyped =
           filename = e.fileName
           vals = e.valTable
 
-        when not defined(noColors):
+        when not noColors:
           styledEcho(styleDim, fgWhite, "  Condition: $2($1)\l".format(snip, name), "  Where:")
           for k, v in vals.pairs:
             styledEcho(styleDim, fgCyan, "    ", k,
@@ -742,7 +745,7 @@ proc printRunning(suite: TestSuite) =
     ticks &= "-"
 
   when not defined(quiet):
-    when not defined(noColors):
+    when not noColors:
       styledEcho(styleBright,
                   fgYellow, "\l"&ticks,
                   fgYellow, "\l\l[Running]",
@@ -753,16 +756,17 @@ proc printRunning(suite: TestSuite) =
 
 
 proc printPassedTests(suite: TestSuite) =
-  # Output red if tests didn't pass, green otherwise
-  var color = fgGreen
+  when not noColors:
+    # Output red if tests didn't pass, green otherwise
+    var color = fgGreen
 
-  if suite.testsPassed != suite.numTests:
-    color = fgRed
+    if suite.testsPassed != suite.numTests:
+      color = fgRed
 
   var passedStr = "[" & $suite.testsPassed & "/" & $suite.numTests & "]"
 
   when not defined(quiet):
-    when not defined(noColors):
+    when not noColors:
       styledEcho(styleBright, color,
                   "\l", passedStr,
                   fgWhite, " tests passed for ", suite.name, ".")
@@ -770,15 +774,16 @@ proc printPassedTests(suite: TestSuite) =
       echo "\l$1 tests passed for $2.".format(passedStr, suite.name)
 
 proc printSummary(totalTestsPassed: int, totalTests: int) =
-  var summaryColor = fgGreen
+  when not noColors:
+    var summaryColor = fgGreen
 
-  if totalTestsPassed != totalTests:
-    summaryColor = fgRed
+    if totalTestsPassed != totalTests:
+      summaryColor = fgRed
 
   var passedStr = "[" & $totalTestsPassed & "/" & $totalTests & "]"
 
   when defined(quiet):
-    when not defined(noColors):
+    when not noColors:
       styledEcho(styleBright, summaryColor,
                  "\l\l", passedStr,
                  fgWhite, " tests passed.")
@@ -795,7 +800,7 @@ proc printSummary(totalTestsPassed: int, totalTests: int) =
     for i in 0..<numTicks:
       ticks &= "-"
 
-    when not defined(noColors):
+    when not noColors:
       styledEcho(styleBright,
                  fgYellow, "\l$1\l".format(ticks),
                  fgYellow, "\l[Summary]")
