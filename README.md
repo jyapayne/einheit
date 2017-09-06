@@ -39,6 +39,10 @@ nim c -r -d:noColors testing_script.nim
 
 # No colors, quiet output
 nim c -r -d:quiet -d:noColors testing_script.nim
+
+# With Node.js as a target
+nim js -d:nodejs -r testing_script.nim
+
 ```
 
 ### Usage

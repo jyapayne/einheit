@@ -36,6 +36,22 @@ when defined(windows):
 
     return (rows.int, cols.int)
 
+elif defined(ECMAScript) and defined(nodejs):
+  type
+    StreamObj {.importc.} = object
+      columns: int
+      rows: int
+
+    ProcessObj {.importc.} = object
+      stdout: ref StreamObj
+
+  var
+    process {.importc, nodecl.}: ref ProcessObj
+  
+  proc getTermSize*(): (int, int) =
+    let t = process.stdout
+    return (t.rows, t.columns)
+
 else:
   import posix
   type

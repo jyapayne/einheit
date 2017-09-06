@@ -12,3 +12,6 @@ requires "nim >= 0.17.0"
 
 task test, "Run tests":
   exec "nim c -r tests/test.nim"
+
+task testjs, "Run tests on Node.js":
+  exec "nim js -d:nodejs -r tests/test.nim"
