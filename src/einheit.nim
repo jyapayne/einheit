@@ -43,21 +43,22 @@ template tupleObjToStr(obj): string {.dirty.} =
     res.add("(")
     var firstElement = true
     for name, value in n.fieldPairs():
-      if not firstElement:
-        res.add(", ")
-      res.add(name)
-      res.add(": ")
-      when (value is object or value is tuple):
-        when (value is tuple):
-          res.add("tuple " & typeToStr(type(value)))
+      when compiles(value):
+        if not firstElement:
+          res.add(", ")
+        res.add(name)
+        res.add(": ")
+        when (value is object or value is tuple):
+          when (value is tuple):
+            res.add("tuple " & typeToStr(type(value)))
+          else:
+            res.add(typeToStr(type(value)))
+          helper(value)
+        elif (value is string):
+          res.add("\"" & $value & "\"")
         else:
-          res.add(typeToStr(type(value)))
-        helper(value)
-      elif (value is string):
-        res.add("\"" & $value & "\"")
-      else:
-        res.add($value)
-      firstElement = false
+          res.add($value)
+        firstElement = false
     res.add(")")
   helper(obj)
   res
@@ -207,6 +208,21 @@ template recursive(node, action): untyped {.dirty.} =
       result.add helper(c)
   discard helper(node)
 
+proc getNode(nodeKind: NimNodeKind, node: NimNode): NimNode =
+  ## Gets the first node with nodeKind
+  var stack: seq[NimNode] = @[node]
+
+  while stack.len() > 0:
+    let newNode = stack.pop()
+    for i in 0 ..< newNode.len():
+      let child = newNode[i]
+      if child.kind == nodeKind:
+        return child
+      else:
+        stack.add(child)
+
+  return newEmptyNode()
+
 template strRep(n: NimNode): untyped =
   toString(n)
 
@@ -215,7 +231,7 @@ template tableEntry(n: NimNode): untyped =
 
 macro getSyms(code:untyped): untyped =
   ## This macro gets all symbols and values of an expression
-  ## into a table 
+  ## into a table
   ##
   ## Table[string, string] -> symbolName, value
   ##
@@ -240,7 +256,7 @@ macro getSyms(code:untyped): untyped =
         tableConstr.add(tableEntry(ch1))
         if ch1.len() > 0 and ch1[0].kind == nnkDotExpr:
           tableConstr.add(tableEntry(ch1[0][0]))
-        for i in 1..<ch1.len():
+        for i in 1 ..< ch1.len():
           tableConstr.add(tableEntry(ch1[i]))
       of nnkDotExpr:
         tableConstr.add(tableEntry(ch1))
@@ -450,7 +466,12 @@ macro testSuite*(head: untyped, body: untyped): untyped =
   var baseMethodName = ident("runTests" & $baseName.toStrLit())
   var typeMethodName = ident("runTests" & $typeName.toStrLit())
 
-  var runTests = getAst(runTestsProc(ident(objReference), typeName, baseMethodName, typeMethodName))
+  var runTests = getAst(
+    runTestsProc(
+      ident(objReference), typeName,
+      baseMethodName, typeMethodName
+    )
+  )
 
   var
     foundSetup = false
@@ -514,11 +535,11 @@ macro testSuite*(head: untyped, body: untyped): untyped =
         when compiles(self.baseMethod()):
           self.baseMethod()
 
+
     var setupProcTypename = ident("setup" & $typeName.toStrLit())
     var baseMethodName = ident("setup" & $baseName.toStrLit())
     result.add(getAst(setupProc(ident(objReference), typeName, setupProcTypename)))
-    var setupBaseAst = getAst(setupDecl(ident(objReference), baseMethodName))
-    body.add(setupBaseAst[0])
+    body.add(getAst(setupDecl(ident(objReference), baseMethodName)))
 
   if not foundTeardown:
     template teardownProc(self, typeName, tdProc) =
@@ -535,9 +556,8 @@ macro testSuite*(head: untyped, body: untyped): untyped =
     result.add(getAst(teardownProc(ident(objReference),
                                          typeName,
                                          teardownProcTypename)))
-    var teardownBaseAst = getAst(teardownDecl(ident(objReference),
-                                              baseTearMethodName))
-    body.add(teardownBaseAst[0])
+    body.add(getAst(teardownDecl(ident(objReference),
+                    baseTearMethodName)))
 
   template setTestName(self, procName) =
     self.currentTestName = procName
@@ -719,7 +739,9 @@ macro testSuite*(head: untyped, body: untyped): untyped =
   #           OfInherit
   #             Ident !"RootObj"
   #           Empty   <= We want to replace this
-  typeDecl[0][0][2][0][2] = recList
+
+  var objTyNode = getNode(nnkObjectTy, typeDecl)
+  objTyNode[2] = recList
 
   # insert the type declaration
   result.insert(0, typeDecl)
