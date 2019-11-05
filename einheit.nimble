@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.11"
+version       = "0.2.0"
 author        = "Joey Payne"
 description   = "Tool for providing unit tests. Einheit is German for Unit."
 license       = "MIT"
