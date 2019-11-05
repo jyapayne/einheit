@@ -13,7 +13,7 @@
 ##      self.checkRaises(OSError, newException(OSError, "OS is exploding!"))
 ##
 import macros
-import unicode
+import unicode except split
 import strutils except toLower
 import tables
 import typetraits
@@ -94,15 +94,6 @@ macro toString*(obj: typed): untyped =
         $(obj)
       result = getAst(toStrAst(obj))
 
-proc `==`*[T](ar: openarray[T], ar2: openarray[T]): bool =
-  ## helper proc to compare arrays
-  if len(ar) != len(ar2):
-    return false
-  for i in countup(0, ar.len()):
-    if ar[i] != ar2[i]:
-      return false
-  return true
-
 # ----------------------- Test Suite Types ------------------------------------
 type
   TestSuite* = ref object of RootObj
@@ -140,7 +131,7 @@ method runTests*(suite: TestSuite) {.base.} =
 
 # ------------------------------------
 
-template returnException(name, testName, snip, vals, pos, posRel) =
+template returnException(name, tName, snip, vals, pos, posRel) =
     ## private template for raising an exception
     var
       filename = posRel.filename
@@ -157,7 +148,7 @@ template returnException(name, testName, snip, vals, pos, posRel) =
     exc.fileName = filename
     exc.lineNumber = line
     exc.codeSnip = snip
-    exc.testName = testName
+    exc.testName = tName
     exc.valTable = vals
     exc.checkFuncName = name
     raise exc
@@ -174,10 +165,10 @@ template checkRaises*(self: untyped, error: untyped,
 
   try:
     code
-    var
+    let
       codeStr = astToStr(code).split().join(" ")
       snip = "$1, $2".format(astToStr(error), codeStr)
-      vals = {codeStr: "No Exception Raised"}.toTable()
+      vals = [(codeStr, "No Exception Raised")].toTable()
       testName = self.currentTestName
     returnException("checkRaises", testName, snip, vals, pos, posRel)
 
@@ -186,11 +177,11 @@ template checkRaises*(self: untyped, error: untyped,
   except TestAssertError:
     raise
   except Exception:
-    var
+    let
       e = getCurrentException()
       codeStr = astToStr(code).split().join(" ")
       snip = "$1, $2".format(astToStr(error), codeStr)
-      vals = {codeStr: $e.name}.toTable()
+      vals = [(codeStr, $e.name)].toTable()
       testName = self.currentTestName
 
     returnException("checkRaises", testName, snip, vals, pos, posRel)

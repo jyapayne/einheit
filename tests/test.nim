@@ -73,7 +73,7 @@ testSuite TestInherit of UnitTestsNew:
 
   proc raisesOs() =
     # This proc won't be invoked as a test
-    raise newException(SystemError, "Oh no! OS malfunction!")
+    raise newException(CatchableError, "Oh no! OS malfunction!")
 
   method testRaises() =
 

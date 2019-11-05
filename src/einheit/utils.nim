@@ -47,7 +47,7 @@ elif defined(ECMAScript) and defined(nodejs):
 
   var
     process {.importc, nodecl.}: ref ProcessObj
-  
+
   proc getTermSize*(): (int, int) =
     let t = process.stdout
     return (t.rows, t.columns)
